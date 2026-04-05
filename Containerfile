@@ -1,12 +1,11 @@
 # Start from the Bluefin bootc image
 FROM ghcr.io/ublue-os/bluefin:latest
 
-# 1. Add the Terra repository using the official subatomic link
-# This is more reliable for bootc builds than the standard DNF command
-RUN curl -fsSL https://github.com -o /etc/yum.repos.d/terra.repo
+# 1. Use the DIRECT RAW link to the repo file (Fixes the "Missing Section Header" error)
+RUN curl -fsSL https://githubusercontent.com -o /etc/yum.repos.d/terra.repo
 
-# 2. Install Noctalia, its runtime, and Niri
-# 'noctalia-qs' is the Quickshell fork required to run the shell
+# 2. Install Noctalia, Niri, and Ulauncher
+# We include 'noctalia-qs' as it is the mandatory shell runner
 RUN dnf install -y \
     terra-release \
     niri \
