@@ -1,0 +1,25 @@
+binds {
+    // Replace your old Fuzzel bind with this:
+    Mod+D { spawn "ulauncher-toggle"; }
+}
+
+// Make sure it starts in the background to be fast
+spawn-at-startup "ulauncher" "--hide-window"
+
+window-rule {
+    // Matches the Ulauncher window class
+    match app-id="ulauncher"
+    
+    // Forces it to float over your tiles
+    open-floating true
+    
+    // Centers it on your active monitor
+    place-floating-center
+    
+    // Removes title bars and borders for a cleaner look
+    draw-border-with-background false
+    
+    // Optional: Keeps it always on top of other windows
+    exclude-from-tabs true
+    focus-on-activate true
+}
