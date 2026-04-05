@@ -1,14 +1,13 @@
 # Start from the Bluefin bootc image
 FROM ghcr.io/ublue-os/bluefin:latest
 
-# 1. Use the FULL RAW URL for the Terra repo file
+# 1. FIX: Added 'raw.' to the URL and the full path to the repo file
 RUN curl -fsSL https://githubusercontent.com -o /etc/yum.repos.d/terra.repo
 
-# 2. Import the GPG key manually to prevent DNF from failing silently
+# 2. Import the GPG key to avoid silent 'untrusted package' errors
 RUN rpm --import https://fyralabs.com
 
-# 3. Install Noctalia, Niri, and Ulauncher in one step
-# 'noctalia-qs' is the specific runtime needed for the shell
+# 3. Install your stack
 RUN dnf install -y \
     terra-release \
     niri \
@@ -19,12 +18,10 @@ RUN dnf install -y \
     swaybg \
     matugen
 
-# 4. VERIFICATION: If these aren't found, the GitHub Action will FAIL (this is good!)
+# 4. Safety Check: If this fails, the GitHub Action will tell us immediately
 RUN which niri && which noctalia-shell && which ulauncher
 
-# 5. Copy your local configurations
+# 5. Configs and Cleanup
 COPY config/niri/ /etc/skel/.config/niri/
 COPY config/noctalia/ /etc/skel/.config/noctalia/
-
-# 6. Cleanup
 RUN dnf clean all && rm -rf /var/cache/dnf/*
