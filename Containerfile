@@ -1,40 +1,18 @@
-# Allow build scripts to be referenced without being copied into the final image
-FROM scratch AS ctx
-COPY build_files /
+# Start from the Bluefin bootc image
+FROM ghcr.io/ublue-os/bluefin:latest
 
-# Base Image
-FROM ghcr.io/ublue-os/bazzite:stable
+# Enable COPR repositories for Niri and Noctalia
+RUN dnf -y copr enable yalter/niri && \
+    dnf -y copr enable zhangyi6324/noctalia-shell
 
-## Other possible base images include:
-# FROM ghcr.io/ublue-os/bazzite:latest
-# FROM ghcr.io/ublue-os/bluefin-nvidia:stable
-# 
-# ... and so on, here are more base images
-# Universal Blue Images: https://github.com/orgs/ublue-os/packages
-# Fedora base image: quay.io/fedora/fedora-bootc:41
-# CentOS base images: quay.io/centos-bootc/centos-bootc:stream10
+# Install Niri, Noctalia, and essential Wayland utilities
+RUN dnf -y install \
+    niri \
+    noctalia-shell \
+    alacritty \
+    fuzzel \
+    swaybg
 
-### [IM]MUTABLE /opt
-## Some bootable images, like Fedora, have /opt symlinked to /var/opt, in order to
-## make it mutable/writable for users. However, some packages write files to this directory,
-## thus its contents might be wiped out when bootc deploys an image, making it troublesome for
-## some packages. Eg, google-chrome, docker-desktop.
-##
-## Uncomment the following line if one desires to make /opt immutable and be able to be used
-## by the package manager.
-
-# RUN rm /opt && mkdir /opt
-
-### MODIFICATIONS
-## make modifications desired in your image and install packages by modifying the build.sh script
-## the following RUN directive does all the things required to run "build.sh" as recommended.
-
-RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
-    --mount=type=cache,dst=/var/cache \
-    --mount=type=cache,dst=/var/log \
-    --mount=type=tmpfs,dst=/tmp \
-    /ctx/build.sh
-    
-### LINTING
-## Verify final image and contents are correct.
-RUN bootc container lint
+# Clean up dnf metadata to keep the image small
+RUN dnf clean all && \
+    rm -rf /var/cache/dnf/*
