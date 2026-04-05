@@ -2,7 +2,7 @@
 FROM ghcr.io/ublue-os/bluefin:latest
 
 # 1. Manually add the Terra repo (Required for Noctalia & Ulauncher on Fedora Atomic)
-RUN curl -Lo /etc/yum.repos.d/terra.repo https://fyralabs.com
+RUN curl -Lo /etc/yum.repos.d/terra.repo https://repo.fyralabs.com/terra.repo
 
 # 2. Install everything in one layer to keep the image clean
 # Added ulauncher and kept noctalia-shell, niri, and utilities
