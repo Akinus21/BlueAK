@@ -6,6 +6,16 @@ binds {
 // Make sure it starts in the background to be fast
 spawn-at-startup "ulauncher" "--hide-window"
 
+// Start Noctalia shell
+spawn-at-startup "qs" "-c" "noctalia-shell"
+
+window-rule {
+    // Rounded corners for a modern look
+    geometry-corner-radius 20
+    // Clips window contents to the rounded corner boundaries
+    clip-to-geometry true
+}
+
 window-rule {
     // Matches the Ulauncher window class
     match app-id="ulauncher"
@@ -22,4 +32,9 @@ window-rule {
     // Optional: Keeps it always on top of other windows
     exclude-from-tabs true
     focus-on-activate true
+}
+
+debug {
+    // Allows notification actions and window activation from Noctalia
+    honor-xdg-activation-with-invalid-serial
 }
