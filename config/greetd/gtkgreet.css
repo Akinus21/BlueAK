@@ -1,0 +1,124 @@
+/* ============================================================
+   gtkgreet — Eldritch theme
+   Palette: https://github.com/eldritch-theme/eldritch
+   ============================================================
+   Background:   #212337  (Sunken Depths Grey)
+   Current Line: #323449  (Shallow Depths Grey)
+   Foreground:   #ebfafa  (Lighthouse White)
+   Comment:      #7081d0  (The Old One Purple)
+   Cyan:         #04d1f9  (Watery Tomb Blue)
+   Green:        #37f499  (Abyssal Green)
+   Orange:       #f7c67f  (Ancient Amber)
+   Pink:         #f16c75  (Crimson Depth)
+   Purple:       #a48cf4  (Void Purple)
+   Yellow:       #f1fc79  (Bioluminescent Yellow)
+   ============================================================ */
+
+window {
+    background-color: #212337;
+}
+
+/* ── Login card ──────────────────────────────────────────── */
+box#body {
+    background-color: #323449;
+    border-radius: 12px;
+    padding: 48px 56px;
+    border: 1px solid #7081d0;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    min-width: 380px;
+}
+
+/* ── Clock ───────────────────────────────────────────────── */
+label#clock {
+    color: #7081d0;
+    font-size: 13px;
+    font-weight: 400;
+    margin-bottom: 24px;
+    letter-spacing: 1px;
+}
+
+/* ── All labels ──────────────────────────────────────────── */
+label {
+    color: #ebfafa;
+    font-size: 14px;
+}
+
+/* ── Input fields ────────────────────────────────────────── */
+entry {
+    background-color: #212337;
+    color: #ebfafa;
+    border: 1px solid #7081d0;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 14px;
+    caret-color: #04d1f9;
+    transition: border-color 200ms ease;
+}
+
+entry:focus {
+    border-color: #04d1f9;
+    box-shadow: 0 0 0 2px rgba(4, 209, 249, 0.2);
+    outline: none;
+}
+
+entry:hover {
+    border-color: #a48cf4;
+}
+
+/* ── Buttons ─────────────────────────────────────────────── */
+button {
+    background-color: #7081d0;
+    color: #212337;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: background-color 150ms ease;
+}
+
+button:hover {
+    background-color: #a48cf4;
+}
+
+button:active {
+    background-color: #04d1f9;
+    color: #212337;
+}
+
+/* ── Dropdowns (session selector) ───────────────────────── */
+combobox button {
+    background-color: #212337;
+    color: #ebfafa;
+    border: 1px solid #7081d0;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-weight: 400;
+}
+
+combobox button:hover {
+    border-color: #a48cf4;
+    background-color: #2a2d45;
+}
+
+/* ── Error / info messages ───────────────────────────────── */
+label.error {
+    color: #f16c75;
+    font-size: 12px;
+}
+
+/* ── Scrollbars ──────────────────────────────────────────── */
+scrollbar {
+    background-color: #212337;
+}
+
+scrollbar slider {
+    background-color: #7081d0;
+    border-radius: 4px;
+    min-width: 6px;
+    min-height: 6px;
+}
+
+scrollbar slider:hover {
+    background-color: #a48cf4;
+}
