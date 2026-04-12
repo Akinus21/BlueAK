@@ -21,12 +21,15 @@ RUN dnf install -y \
     greetd-selinux \
     tuigreet
 
-RUN useradd -M -s /sbin/nologin -r -d /var/lib/greeter greeter
-
 # Configure greetd to launch tuigreet → niri
 RUN mkdir -p /etc/greetd && \
     printf '[terminal]\nvt = 1\n\n[default_session]\ncommand = "tuigreet --cmd niri-session --remember --remember-session -t --asterisks"\nuser = "greeter"\n' \
     > /etc/greetd/config.toml
+
+# Declare greeter system user via sysusers.d — works correctly in bootc/ostree images
+# (useradd writes to /etc/passwd which does not persist reliably in container builds)
+RUN printf 'u greeter - "Greeter user" /var/lib/greeter /sbin/nologin\n' \
+    > /usr/lib/sysusers.d/greeter.conf
 
 # Disable GDM, enable greetd — GNOME packages stay installed (required by Bluefin base)
 RUN systemctl disable gdm 2>/dev/null || true
