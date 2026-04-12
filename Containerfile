@@ -31,17 +31,12 @@ RUN dnf install -y \
     matugen \
     greetd \
     greetd-selinux \
-    regreet
+    tuigreet
 
 # Configure greetd to launch regreet → niri
 RUN mkdir -p /etc/greetd && \
-    printf '[terminal]\nvt = 1\n\n[default_session]\ncommand = "regreet"\nuser = "greeter"\n' \
+    printf '[terminal]\nvt = 1\n\n[default_session]\ncommand = "tuigreet --cmd niri-session --remember --remember-session -t --asterisks"\nuser = "greeter"\n' \
     > /etc/greetd/config.toml
-
-# regreet config: launch niri as the session
-RUN mkdir -p /etc/regreet && \
-    printf '[commands]\nenvironments = [["niri-session"]]\n\n[background]\npath = ""\nfit = "Cover"\n' \
-    > /etc/regreet/config.toml
 
 RUN systemctl enable greetd && systemctl disable gdm 2>/dev/null || true
 
