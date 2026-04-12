@@ -21,6 +21,8 @@ RUN dnf install -y \
     greetd-selinux \
     tuigreet
 
+RUN useradd -M -s /sbin/nologin -r -d /var/lib/greeter greeter
+
 # Configure greetd to launch tuigreet → niri
 RUN mkdir -p /etc/greetd && \
     printf '[terminal]\nvt = 1\n\n[default_session]\ncommand = "tuigreet --cmd niri-session --remember --remember-session -t --asterisks"\nuser = "greeter"\n' \
