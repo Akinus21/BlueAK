@@ -94,8 +94,11 @@ RUN rpm --import https://downloads.1password.com/linux/keys/1password.asc && \
     > /etc/yum.repos.d/1password.repo
 
 RUN dnf install -y \
-    1password \
     1password-cli
+# NOTE: 1Password GUI cannot be installed at image build time — it fails in
+# container context due to /opt/1Password/ filesystem restrictions.
+# Install the GUI as a Flatpak after first boot:
+#   flatpak install flathub com.onepassword.1Password
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 7. Zsh + shell tooling
@@ -177,6 +180,8 @@ RUN systemctl enable bootc-nightly-reboot.timer
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 COPY config/niri/     /etc/skel/.config/niri/
 COPY config/noctalia/ /etc/skel/.config/noctalia/
+COPY config/profile.d/blueak-init.sh /etc/profile.d/blueak-init.sh
+RUN chmod +x /etc/profile.d/blueak-init.sh
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 12. Cleanup
