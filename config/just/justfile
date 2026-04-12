@@ -1,0 +1,136 @@
+# BlueAK justfile — host-level ops and shortcuts
+# Run `just` to list all recipes
+
+# ── System ──────────────────────────────────────────────────────────────────
+
+# Show system update status
+update-status:
+    bootc status
+
+# Stage an update (no reboot — reboot happens at 3 AM)
+update:
+    sudo bootc upgrade
+
+# Rollback to previous image
+rollback:
+    sudo bootc rollback
+
+# Show pending/applied image changes
+image-diff:
+    bootc status --json | jq '.status.staged // "none"'
+
+# ── Network ─────────────────────────────────────────────────────────────────
+
+# Scan local network (wraps aktools scan_network)
+scan:
+    ~/.aktools/modules/scan_network.sh
+
+# Open Syncthing UI via SSH tunnel to Hetzner
+syncthing:
+    ~/.aktools/modules/hetzner-syncthing.sh
+
+# Change TTL (pass value: just ttl 65)
+ttl value:
+    sudo ~/.aktools/modules/change-ttl.sh {{value}} --permanent
+
+# ── CAC / PKI ────────────────────────────────────────────────────────────────
+
+# Restart PC/SC daemon (fixes card reader hangs)
+pcscd-restart:
+    sudo systemctl restart pcscd
+
+# List smart card readers and card status
+card-status:
+    pcsc_scan -r
+
+# List certificates on inserted CAC
+card-certs:
+    pkcs11-tool --module /usr/lib64/pkcs11/opensc-pkcs11.so -L
+
+# ── Shell ────────────────────────────────────────────────────────────────────
+
+# Reload zsh config
+reload:
+    exec zsh
+
+# Edit justfile
+edit:
+    $EDITOR ~/justfile
+
+# Open aktools aliases
+aliases:
+    $EDITOR ~/.aktools/aliases.sh
+
+# ── PDF / Office ─────────────────────────────────────────────────────────────
+
+# Compress a PDF (usage: just compress-pdf file.pdf)
+compress-pdf file:
+    ~/.aktools/modules/compress_pdf.sh -l normal -f {{file}} -o ./compressed
+
+# Convert PPSX to PDF
+ppsx-to-pdf file:
+    ~/.aktools/modules/ppsx-to-pdf.sh {{file}}
+
+# ── Android ──────────────────────────────────────────────────────────────────
+
+# Mirror phone screen with scrcpy
+phone:
+    ~/.aktools/modules/phone.sh
+
+# ── AI ───────────────────────────────────────────────────────────────────────
+
+# Organize files with AI (wraps ai-organize)
+ai-organize *args:
+    ~/.aktools/modules/ai-organize.sh {{args}}
+
+# Run local AI diagnosis on an issue
+diagnose issue:
+    ~/.aktools/modules/diagnose.sh "{{issue}}"
+
+# ── Sleep ────────────────────────────────────────────────────────────────────
+
+# Suspend immediately
+sleep:
+    ~/.aktools/modules/go-to-sleep.sh
+
+# Suspend after N seconds (usage: just sleep-in 300)
+sleep-in seconds:
+    ~/.aktools/modules/go-to-sleep.sh --delay {{seconds}}
+
+# ── Volume ───────────────────────────────────────────────────────────────────
+
+vol-up:
+    ~/.aktools/modules/volume_control.sh up
+
+vol-down:
+    ~/.aktools/modules/volume_control.sh down
+
+vol-mute:
+    ~/.aktools/modules/volume_control.sh mute
+
+vol value:
+    ~/.aktools/modules/volume_control.sh set {{value}}
+
+# ── Git / aktools ────────────────────────────────────────────────────────────
+
+# Bootstrap aktools git (1Password + SSH key setup)
+git-bootstrap:
+    ~/.aktools/modules/git.sh bootstrap
+
+# Sync current git repo
+git-sync:
+    ~/.aktools/modules/git.sh sync
+
+# Show watched repo statuses
+git-status:
+    ~/.aktools/modules/git.sh status
+
+# ── Distrobox ────────────────────────────────────────────────────────────────
+
+# Enter cli distrobox
+cli:
+    distrobox enter cli
+
+# Install a package in distrobox and export it
+atomic-install *pkgs:
+    ~/.aktools/modules/atomic-install.sh {{pkgs}}
