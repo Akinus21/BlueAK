@@ -20,7 +20,7 @@ RUN dnf install -y --nogpgcheck \
     terra-release
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 2. Install desktop stack
+# 2. Install desktop stack + display manager (all Terra packages in one shot)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RUN dnf install -y \
     noctalia-shell \
@@ -28,12 +28,7 @@ RUN dnf install -y \
     ulauncher \
     alacritty \
     swaybg \
-    matugen
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 3. Install greetd + regreet (display manager for niri)
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RUN dnf install -y \
+    matugen \
     greetd \
     greetd-selinux \
     regreet
