@@ -90,14 +90,8 @@ RUN DOD_CERT_URL="https://dl.dod.cyber.mil/wp-content/uploads/pki-pke/zip/unclas
 # 6. 1Password GUI + CLI
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RUN rpm --import https://downloads.1password.com/linux/keys/1password.asc && \
-    tee /etc/yum.repos.d/1password.repo <<'EOF'
-[1password]
-name=1Password Stable Channel
-baseurl=https://downloads.1password.com/linux/rpm/stable/x86_64
-enabled=1
-gpgcheck=1
-gpgkey=https://downloads.1password.com/linux/keys/1password.asc
-EOF
+    printf '[1password]\nname=1Password Stable Channel\nbaseurl=https://downloads.1password.com/linux/rpm/stable/x86_64\nenabled=1\ngpgcheck=1\ngpgkey=https://downloads.1password.com/linux/keys/1password.asc\n' \
+    > /etc/yum.repos.d/1password.repo
 
 RUN dnf install -y \
     1password \
@@ -151,66 +145,7 @@ COPY config/zsh/p10k.zsh /etc/skel/.p10k.zsh
 #   - OP_SERVICE_ACCOUNT_TOKEN removed (sourced from ~/.config/aktools/secrets at runtime)
 #   - p10k sourced from OMZ custom theme (not linuxbrew)
 #   - All your plugins wired in
-RUN cat > /etc/skel/.zshrc << 'ZSHRC'
-# Enable Powerlevel10k instant prompt. Must stay near the top.
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-fi
-
-# PATH — single declaration, deduplicated
-export PATH="$HOME/.opencode/bin:$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"
-
-# Oh My Zsh
-export ZSH="$HOME/.oh-my-zsh"
-ZSH_THEME="powerlevel10k/powerlevel10k"
-
-plugins=(
-  git
-  zsh-autosuggestions
-  zsh-syntax-highlighting
-  zsh-completions
-  fzf
-)
-
-source "$ZSH/oh-my-zsh.sh"
-
-# zsh-completions
-autoload -U compinit && compinit
-
-# zoxide (smarter cd)
-eval "$(zoxide init zsh)"
-
-# fzf shell integration
-if command -v fzf &>/dev/null; then
-  source <(fzf --zsh) 2>/dev/null || true
-fi
-
-# eza aliases (modern ls)
-alias ls='eza --icons'
-alias ll='eza -lah --icons --git'
-alias lt='eza --tree --icons'
-
-# bat alias
-alias cat='bat --style=auto'
-
-# Editor
-export EDITOR='nvim'
-export VISUAL='nvim'
-
-# 1Password CLI shell integration
-if command -v op &>/dev/null; then
-  eval "$(op completion zsh)"; compdef _op op
-fi
-
-# aktools secrets (OP_SERVICE_ACCOUNT_TOKEN lives here, not in .zshrc)
-[[ -f "$HOME/.config/aktools/secrets" ]] && source "$HOME/.config/aktools/secrets"
-
-# aktools aliases
-[[ -f "$HOME/.aktools/aliases.sh" ]] && source "$HOME/.aktools/aliases.sh"
-
-# Powerlevel10k config
-[[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
-ZSHRC
+COPY config/zsh/zshrc /etc/skel/.zshrc
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 9. just recipes (justfile in /etc/skel for new users)
@@ -230,37 +165,8 @@ RUN mkdir -p /etc/systemd/system/bootc-fetch-apply-updates.service.d && \
 # The upstream timer already uses OnBootSec + OnUnitInactiveSec so no override needed here.
 
 # Nightly reboot service — only reboots if a staged update is pending
-RUN cat > /etc/systemd/system/bootc-nightly-reboot.service << 'EOF'
-[Unit]
-Description=Nightly reboot if bootc update is staged
-ConditionPathExists=/run/ostree-booted
-
-[Service]
-Type=oneshot
-ExecStart=/bin/bash -c '\
-  STATUS=$(bootc status --json 2>/dev/null); \
-  STAGED=$(echo "$STATUS" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get(\"status\",{}).get(\"staged\") or \"\")" 2>/dev/null); \
-  if [ -n "$STAGED" ] && [ "$STAGED" != "null" ]; then \
-    echo "Staged update found ($STAGED), rebooting..."; \
-    systemctl reboot; \
-  else \
-    echo "No staged update. Skipping reboot."; \
-  fi'
-EOF
-
-RUN cat > /etc/systemd/system/bootc-nightly-reboot.timer << 'EOF'
-[Unit]
-Description=Nightly reboot check for staged bootc updates
-ConditionPathExists=/run/ostree-booted
-
-[Timer]
-OnCalendar=*-*-* 03:00:00
-RandomizedDelaySec=10m
-Persistent=false
-
-[Install]
-WantedBy=timers.target
-EOF
+COPY config/systemd/bootc-nightly-reboot.service /etc/systemd/system/bootc-nightly-reboot.service
+COPY config/systemd/bootc-nightly-reboot.timer   /etc/systemd/system/bootc-nightly-reboot.timer
 
 RUN systemctl enable bootc-nightly-reboot.timer
 
