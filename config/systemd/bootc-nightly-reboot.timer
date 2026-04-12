@@ -1,0 +1,11 @@
+[Unit]
+Description=Nightly reboot check for staged bootc updates
+ConditionPathExists=/run/ostree-booted
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+RandomizedDelaySec=10m
+Persistent=false
+
+[Install]
+WantedBy=timers.target
