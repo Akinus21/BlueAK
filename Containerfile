@@ -19,12 +19,16 @@ RUN dnf install -y \
     matugen \
     greetd \
     greetd-selinux \
-    tuigreet
+    gtkgreet \
+    cage
 
-# Configure greetd to launch tuigreet → niri
+# Configure greetd to launch cage → gtkgreet → niri
 RUN mkdir -p /etc/greetd && \
-    printf '[terminal]\nvt = 1\n\n[default_session]\ncommand = "tuigreet --cmd niri-session --remember --remember-session -t --asterisks"\nuser = "greeter"\n' \
+    printf '[terminal]\nvt = 1\n\n[default_session]\ncommand = "cage -s -- gtkgreet -l -s /etc/greetd/gtkgreet.css"\nuser = "greeter"\n' \
     > /etc/greetd/config.toml
+
+# Copy Eldritch-themed gtkgreet stylesheet
+COPY config/greetd/gtkgreet.css /etc/greetd/gtkgreet.css
 
 # Declare greeter system user via sysusers.d — works correctly in bootc/ostree images
 # (useradd writes to /etc/passwd which does not persist reliably in container builds)
