@@ -1,0 +1,100 @@
+/* ============================================================
+   GDM Eldritch Theme — appended to gnome-shell.css at build time
+   Eldritch palette: https://github.com/eldritch-theme/eldritch
+   ============================================================
+   #212337  Sunken Depths Grey  — background
+   #323449  Shallow Depths Grey — surfaces
+   #ebfafa  Lighthouse White    — foreground
+   #7081d0  The Old One Purple  — borders/accents
+   #04d1f9  Watery Tomb Blue    — focus/highlight
+   #a48cf4  Void Purple         — hover
+   #f16c75  Crimson Depth       — error
+   #37f499  Abyssal Green       — success
+   ============================================================ */
+
+/* ── Overall login screen background ──────────────────────── */
+#lockDialogGroup {
+    background-color: #212337;
+}
+
+/* ── Login dialog box ─────────────────────────────────────── */
+.login-dialog {
+    background-color: #323449;
+    border: 1px solid #7081d0;
+    border-radius: 12px;
+}
+
+/* ── User list / avatar ───────────────────────────────────── */
+.login-dialog-user-list-item {
+    color: #ebfafa;
+}
+
+.login-dialog-user-list-item:hover,
+.login-dialog-user-list-item:selected {
+    background-color: rgba(112, 129, 208, 0.2);
+    border-radius: 8px;
+}
+
+/* ── Username label ───────────────────────────────────────── */
+.login-dialog-username-label {
+    color: #ebfafa;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+/* ── Password entry ───────────────────────────────────────── */
+.login-dialog-prompt-label {
+    color: #7081d0;
+    font-size: 13px;
+}
+
+.login-dialog-prompt-entry {
+    background-color: #212337;
+    color: #ebfafa;
+    border: 1px solid #7081d0;
+    border-radius: 6px;
+}
+
+.login-dialog-prompt-entry:focus {
+    border-color: #04d1f9;
+    box-shadow: 0 0 0 2px rgba(4, 209, 249, 0.2);
+}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.login-dialog-button {
+    background-color: #7081d0;
+    color: #212337;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+.login-dialog-button:hover {
+    background-color: #a48cf4;
+}
+
+.login-dialog-button:active {
+    background-color: #04d1f9;
+}
+
+/* ── Error message ────────────────────────────────────────── */
+.login-dialog-message.error {
+    color: #f16c75;
+}
+
+/* ── Clock on lock/login screen ───────────────────────────── */
+.login-dialog-clock {
+    color: #7081d0;
+    font-size: 13px;
+}
+
+/* ── Top bar (hidden but just in case) ───────────────────── */
+#panel.login-screen,
+#panel.unlock-screen {
+    background-color: #212337;
+}
+
+#panel.login-screen .panel-button,
+#panel.unlock-screen .panel-button {
+    color: #7081d0;
+}
