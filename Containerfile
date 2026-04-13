@@ -23,8 +23,9 @@ RUN dnf install -y \
     cage
 
 # Configure greetd to launch cage → gtkgreet → niri
+# GDK_SCALE=2 for Surface Pro 10 HiDPI (2880x1920), GDK_DPI_SCALE=0.5 keeps fonts sharp
 RUN mkdir -p /etc/greetd && \
-    printf '[terminal]\nvt = 1\n\n[default_session]\ncommand = "cage -s -- gtkgreet -l -s /etc/greetd/gtkgreet.css"\nuser = "greeter"\n' \
+    printf '[terminal]\nvt = 1\n\n[default_session]\ncommand = "cage -s -- gtkgreet -l -s /etc/greetd/gtkgreet.css"\nuser = "greeter"\n\n[default_session.env]\nGDK_SCALE = "2"\nGDK_DPI_SCALE = "0.5"\n' \
     > /etc/greetd/config.toml
 
 # Copy Eldritch-themed gtkgreet stylesheet
