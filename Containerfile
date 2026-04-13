@@ -8,7 +8,7 @@ RUN dnf install -y --nogpgcheck \
     terra-release
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 2. Install desktop stack (all Terra packages in one shot)
+# 2. Install desktop stack
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RUN dnf install -y \
     noctalia-shell \
@@ -19,27 +19,7 @@ RUN dnf install -y \
     matugen
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 3. GDM - keep enabled (already configured by Bluefin), apply Eldritch theme
-#    GDM hands off to niri after login. No GNOME shell runs in the user session.
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RUN mkdir -p /usr/share/blueak /usr/libexec
-COPY config/gdm/gdm-eldritch.css          /usr/share/blueak/gdm-eldritch.css
-COPY config/gdm/blueak-apply-gdm-theme.sh /usr/libexec/blueak-apply-gdm-theme
-RUN dnf install -y glib2-devel && \
-    chmod +x /usr/libexec/blueak-apply-gdm-theme && \
-    /usr/libexec/blueak-apply-gdm-theme && \
-    dnf remove -y glib2-devel && dnf autoremove -y
-
-# GDM dconf: dark mode, no banner
-RUN mkdir -p /etc/dconf/db/gdm.d /etc/dconf/profile && \
-    printf 'user-db:user\nsystem-db:gdm\nfile-db:/usr/share/gdm/greeter-dconf-defaults\n' \
-        > /etc/dconf/profile/gdm && \
-    printf '[org/gnome/login-screen]\nbanner-message-enable=false\ndisable-user-list=false\n\n[org/gnome/desktop/interface]\ncolor-scheme=\'prefer-dark\'\n' \
-        > /etc/dconf/db/gdm.d/00-blueak && \
-    dconf update
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 4. CAC smart card support
+# 3. CAC smart card support
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RUN dnf install -y \
     pcsc-lite \
@@ -66,7 +46,7 @@ RUN if [ -f /etc/opensc/opensc.conf ]; then \
 RUN systemctl enable pcscd.socket
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 5. Install DoD PKI CA certificates
+# 4. Install DoD PKI CA certificates
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RUN DOD_CERT_URL="https://dl.dod.cyber.mil/wp-content/uploads/pki-pke/zip/unclass-certificates_pkcs7_DoD.zip" && \
     mkdir -p /tmp/dod_certs && \
@@ -85,18 +65,18 @@ RUN DOD_CERT_URL="https://dl.dod.cyber.mil/wp-content/uploads/pki-pke/zip/unclas
     rm -rf /tmp/dod_certs
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 6. 1Password CLI
+# 5. 1Password CLI
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RUN rpm --import https://downloads.1password.com/linux/keys/1password.asc && \
     printf '[1password]\nname=1Password Stable Channel\nbaseurl=https://downloads.1password.com/linux/rpm/stable/x86_64\nenabled=1\ngpgcheck=1\ngpgkey=https://downloads.1password.com/linux/keys/1password.asc\n' \
     > /etc/yum.repos.d/1password.repo
 
 RUN dnf install -y 1password-cli
-# NOTE: 1Password GUI is installed as a Flatpak post-boot:
+# NOTE: 1Password GUI installed as Flatpak post-boot:
 #   flatpak install flathub com.onepassword.1Password
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 7. Zsh + shell tooling
+# 6. Zsh + shell tooling
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RUN dnf install -y \
     zsh \
@@ -115,7 +95,7 @@ RUN sed -i 's|^SHELL=.*|SHELL=/bin/zsh|' /etc/default/useradd 2>/dev/null || \
     echo 'SHELL=/bin/zsh' >> /etc/default/useradd
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 8. Oh-my-zsh + Powerlevel10k + plugins -> /etc/skel
+# 7. Oh-my-zsh + Powerlevel10k + plugins -> /etc/skel
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RUN git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git /etc/skel/.oh-my-zsh
 
@@ -133,12 +113,12 @@ COPY config/zsh/p10k.zsh /etc/skel/.p10k.zsh
 COPY config/zsh/zshrc    /etc/skel/.zshrc
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 9. just recipes
+# 8. just recipes
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 COPY config/just/justfile /etc/skel/justfile
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 10. bootc update: stage-only, nightly reboot at 3 AM
+# 9. bootc update: stage-only, nightly reboot at 3 AM
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RUN mkdir -p /etc/systemd/system/bootc-fetch-apply-updates.service.d && \
     printf '[Service]\nExecStart=\nExecStart=/usr/bin/bootc upgrade --quiet\n' \
@@ -150,7 +130,7 @@ COPY config/systemd/bootc-nightly-reboot.timer   /etc/systemd/system/bootc-night
 RUN systemctl enable bootc-nightly-reboot.timer
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 11. Configs + first-login bootstrap
+# 10. Configs + first-login bootstrap
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 COPY config/niri/     /etc/skel/.config/niri/
 COPY config/noctalia/ /etc/skel/.config/noctalia/
@@ -158,6 +138,6 @@ COPY config/profile.d/blueak-init.sh /etc/profile.d/blueak-init.sh
 RUN chmod +x /etc/profile.d/blueak-init.sh
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 12. Cleanup
+# 11. Cleanup
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RUN dnf clean all && rm -rf /var/cache/dnf/*
