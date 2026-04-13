@@ -37,7 +37,8 @@ RUN chmod +x /usr/local/bin/blueak-greeter
 
 # Declare greeter system user via sysusers.d — works correctly in bootc/ostree images
 # (useradd writes to /etc/passwd which does not persist reliably in container builds)
-RUN printf 'u greeter - "Greeter user" /var/lib/greeter /sbin/nologin\n' \
+# greeter needs video + render group membership to access /dev/dri/* for cage/wlroots
+RUN printf 'u greeter - "Greeter user" /var/lib/greeter /sbin/nologin\nm greeter video\nm greeter render\n' \
     > /usr/lib/sysusers.d/greeter.conf
 
 # Disable GDM, enable greetd — GNOME packages stay installed (required by Bluefin base)
