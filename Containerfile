@@ -25,8 +25,10 @@ RUN dnf install -y \
 RUN mkdir -p /usr/share/blueak /usr/libexec
 COPY config/gdm/gdm-eldritch.css          /usr/share/blueak/gdm-eldritch.css
 COPY config/gdm/blueak-apply-gdm-theme.sh /usr/libexec/blueak-apply-gdm-theme
-RUN chmod +x /usr/libexec/blueak-apply-gdm-theme && \
-    /usr/libexec/blueak-apply-gdm-theme
+RUN dnf install -y glib2-devel && \
+    chmod +x /usr/libexec/blueak-apply-gdm-theme && \
+    /usr/libexec/blueak-apply-gdm-theme && \
+    dnf remove -y glib2-devel && dnf autoremove -y
 
 # GDM dconf: dark mode, no banner
 RUN mkdir -p /etc/dconf/db/gdm.d /etc/dconf/profile && \
