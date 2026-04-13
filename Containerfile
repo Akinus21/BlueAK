@@ -34,7 +34,7 @@ RUN dnf install -y glib2-devel && \
 RUN mkdir -p /etc/dconf/db/gdm.d /etc/dconf/profile && \
     printf 'user-db:user\nsystem-db:gdm\nfile-db:/usr/share/gdm/greeter-dconf-defaults\n' \
         > /etc/dconf/profile/gdm && \
-    printf '[org/gnome/login-screen]\nbanner-message-enable=false\ndisable-user-list=false\n\n[org/gnome/desktop/interface]\ncolor-scheme=prefer-dark\n' \
+    printf '[org/gnome/login-screen]\nbanner-message-enable=false\ndisable-user-list=false\n\n[org/gnome/desktop/interface]\ncolor-scheme=\'prefer-dark\'\n' \
         > /etc/dconf/db/gdm.d/00-blueak && \
     dconf update
 
