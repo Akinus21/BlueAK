@@ -22,14 +22,15 @@ RUN dnf install -y \
     gtkgreet \
     cage
 
-# Configure greetd to launch cage → gtkgreet → niri
-# GDK_SCALE=2 for Surface Pro 10 HiDPI (2880x1920), GDK_DPI_SCALE=0.5 keeps fonts sharp
+# Configure greetd to use dynamic HiDPI-aware greeter script
 RUN mkdir -p /etc/greetd && \
-    printf '[terminal]\nvt = 1\n\n[default_session]\ncommand = "cage -s -- gtkgreet -l -s /etc/greetd/gtkgreet.css"\nuser = "greeter"\n\n[default_session.env]\nGDK_SCALE = "2"\nGDK_DPI_SCALE = "0.5"\n' \
+    printf '[terminal]\nvt = 1\n\n[default_session]\ncommand = "/etc/greetd/start-greeter.sh"\nuser = "greeter"\n' \
     > /etc/greetd/config.toml
 
-# Copy Eldritch-themed gtkgreet stylesheet
-COPY config/greetd/gtkgreet.css /etc/greetd/gtkgreet.css
+# Copy Eldritch-themed gtkgreet stylesheet and dynamic launch script
+COPY config/greetd/gtkgreet.css      /etc/greetd/gtkgreet.css
+COPY config/greetd/start-greeter.sh  /etc/greetd/start-greeter.sh
+RUN chmod +x /etc/greetd/start-greeter.sh
 
 # Declare greeter system user via sysusers.d — works correctly in bootc/ostree images
 # (useradd writes to /etc/passwd which does not persist reliably in container builds)
