@@ -23,14 +23,17 @@ RUN dnf install -y \
     cage
 
 # Configure greetd to use dynamic HiDPI-aware greeter script
+# Script lives in /usr/local/bin so SELinux allows execution by the greeter user
 RUN mkdir -p /etc/greetd && \
-    printf '[terminal]\nvt = 1\n\n[default_session]\ncommand = "/etc/greetd/start-greeter.sh"\nuser = "greeter"\n' \
+    printf '[terminal]\nvt = 1\n\n[default_session]\ncommand = "/usr/local/bin/blueak-greeter"\nuser = "greeter"\n' \
     > /etc/greetd/config.toml
 
-# Copy Eldritch-themed gtkgreet stylesheet and dynamic launch script
+# Copy Eldritch-themed gtkgreet stylesheet
 COPY config/greetd/gtkgreet.css      /etc/greetd/gtkgreet.css
-COPY config/greetd/start-greeter.sh  /etc/greetd/start-greeter.sh
-RUN chmod +x /etc/greetd/start-greeter.sh
+
+# Install greeter launch script to /usr/local/bin (SELinux bin_t context — executable)
+COPY config/greetd/start-greeter.sh  /usr/local/bin/blueak-greeter
+RUN chmod +x /usr/local/bin/blueak-greeter
 
 # Declare greeter system user via sysusers.d — works correctly in bootc/ostree images
 # (useradd writes to /etc/passwd which does not persist reliably in container builds)
