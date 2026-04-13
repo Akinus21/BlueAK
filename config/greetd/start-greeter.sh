@@ -22,4 +22,4 @@ else
     export GDK_DPI_SCALE=1
 fi
 
-exec cage -s -- gtkgreet -l -s /etc/greetd/gtkgreet.css
+exec cage -s -- gtkgreet -l -s /etc/greetd/gtkgreet.css -c niri-session
