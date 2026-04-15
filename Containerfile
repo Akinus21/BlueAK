@@ -142,9 +142,7 @@ RUN systemctl enable bootc-nightly-reboot.timer
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Copy the full filetagger package into a stable system path
-COPY filetagger/                    /usr/share/filetagger/filetagger/
-COPY filetagger/pyproject.toml      /usr/share/filetagger/pyproject.toml
-COPY filetagger/README.md           /usr/share/filetagger/README.md
+COPY filetagger/ /usr/share/filetagger/src/
 
 # Build a system-level venv so every user shares the same installed package.
 # The venv lives on the immutable base — no per-user pip installs needed.
