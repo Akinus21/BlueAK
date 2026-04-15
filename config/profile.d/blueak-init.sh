@@ -1,104 +1,86 @@
 #!/usr/bin/env bash
 # /etc/profile.d/blueak-init.sh
-# Runs on every login. No-ops silently once everything is set up.
-# Sets up the 'cli' distrobox and installs 1Password inside it.
+# Runs once per user on first login. Idempotent — safe to re-run.
 
-# Only run for interactive login shells of real users (uid >= 1000)
-[[ $- != *i* ]] && return
-[[ "$(id -u)" -lt 1000 ]] && return
+INIT_STAMP="$HOME/.local/share/blueak/.init-done"
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
-
-_log()  { echo "[blueak-init] $*"; }
-_ok()   { echo "[blueak-init] ✔ $*"; }
-_warn() { echo "[blueak-init] ! $*"; }
-
-# ── Detect parent OS image for distrobox ─────────────────────────────────────
-
-_get_image() {
-    if [[ -f /etc/os-release ]]; then
-        . /etc/os-release
-        case "$ID" in
-            fedora)  echo "registry.fedoraproject.org/fedora:${VERSION_ID:-40}" ;;
-            debian)  echo "docker.io/library/debian:stable" ;;
-            ubuntu)  echo "docker.io/library/ubuntu:latest" ;;
-            arch)    echo "docker.io/library/archlinux:latest" ;;
-            *)       echo "registry.fedoraproject.org/fedora:40" ;;
-        esac
-    else
-        echo "registry.fedoraproject.org/fedora:40"
-    fi
-}
-
-# ── 1: Ensure 'cli' distrobox exists ─────────────────────────────────────────
-
-if command -v distrobox &>/dev/null; then
-    if ! distrobox list 2>/dev/null | grep -q "^cli "; then
-        _log "Creating 'cli' distrobox..."
-        IMAGE="$(_get_image)"
-        _log "Using image: $IMAGE"
-        distrobox create --name cli --image "$IMAGE" --yes
-        _ok "'cli' distrobox created."
-    else
-        _ok "'cli' distrobox already exists."
-    fi
-else
-    _warn "distrobox not found — skipping distrobox setup."
+if [[ -f "$INIT_STAMP" ]]; then
+    exit 0
 fi
 
-# ── 2: Ensure 1Password CLI is installed in 'cli' ────────────────────────────
+# ── Flatpak remotes ──────────────────────────────────────────────────────────
+flatpak remote-add --user --if-not-exists flathub \
+    https://dl.flathub.org/repo/flathub.flatpakrepo
 
-if command -v distrobox &>/dev/null && distrobox list 2>/dev/null | grep -q "^cli "; then
+# ── Flatpak GUI apps ─────────────────────────────────────────────────────────
+flatpak install --user -y flathub com.onepassword.1Password
 
-    OP_INSTALLED=$(distrobox enter cli -- bash -c 'command -v op &>/dev/null && echo yes || echo no' 2>/dev/null)
+# ── TagSpaces AppImage ───────────────────────────────────────────────────────
+TAGSPACES_VERSION="6.10.5"
+TAGSPACES_DIR="$HOME/.local/share/tagspaces"
+TAGSPACES_BIN="$HOME/.local/bin/tagspaces"
+TAGSPACES_APPIMAGE="$TAGSPACES_DIR/TagSpaces-${TAGSPACES_VERSION}.AppImage"
 
-    if [[ "$OP_INSTALLED" != "yes" ]]; then
-        _log "Installing 1Password CLI in 'cli' distrobox..."
+mkdir -p "$TAGSPACES_DIR" "$HOME/.local/bin"
 
-        distrobox enter cli -- bash -c '
-            set -e
+if [[ ! -f "$TAGSPACES_APPIMAGE" ]]; then
+    echo "[blueak-init] Installing TagSpaces ${TAGSPACES_VERSION}..."
+    curl -fsSL --retry 3 \
+        "https://github.com/tagspaces/tagspaces/releases/download/v${TAGSPACES_VERSION}/tagspaces-linux-x86_64-${TAGSPACES_VERSION}.AppImage" \
+        -o "$TAGSPACES_APPIMAGE"
+    chmod +x "$TAGSPACES_APPIMAGE"
 
-            # Detect package manager
-            if command -v dnf &>/dev/null; then
-                sudo rpm --import https://downloads.1password.com/linux/keys/1password.asc
-                sudo tee /etc/yum.repos.d/1password.repo > /dev/null <<EOF
-[1password]
-name=1Password Stable Channel
-baseurl=https://downloads.1password.com/linux/rpm/stable/x86_64
-enabled=1
-gpgcheck=1
-gpgkey=https://downloads.1password.com/linux/keys/1password.asc
-EOF
-                sudo dnf install -y 1password-cli
+    # Wrapper so 'tagspaces' works from any terminal
+    printf '#!/usr/bin/env bash\nexec "%s" "$@"\n' "$TAGSPACES_APPIMAGE" \
+        > "$TAGSPACES_BIN"
+    chmod +x "$TAGSPACES_BIN"
 
-            elif command -v apt-get &>/dev/null; then
-                curl -sS https://downloads.1password.com/linux/keys/1password.asc | \
-                    sudo gpg --dearmor --output /usr/share/keyrings/1password-archive-keyring.gpg
-                echo "deb [arch=amd64 signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] \
-https://downloads.1password.com/linux/debian/amd64 stable main" | \
-                    sudo tee /etc/apt/sources.list.d/1password.list
-                sudo apt-get update -qq && sudo apt-get install -y 1password-cli
+    # .desktop entry for ulauncher / app grid
+    mkdir -p "$HOME/.local/share/applications"
+    cat > "$HOME/.local/share/applications/tagspaces.desktop" << DESKTOP
+[Desktop Entry]
+Name=TagSpaces
+Comment=Offline file manager with AI tagging support
+Exec=$TAGSPACES_APPIMAGE %F
+Icon=$TAGSPACES_DIR/tagspaces.png
+Terminal=false
+Type=Application
+Categories=Utility;FileManager;
+MimeType=inode/directory;
+StartupWMClass=tagspaces
+DESKTOP
 
-            elif command -v pacman &>/dev/null; then
-                sudo pacman -S --noconfirm 1password-cli
+    # Extract icon from AppImage
+    cd /tmp && "$TAGSPACES_APPIMAGE" --appimage-extract \
+        'usr/share/icons' >/dev/null 2>&1 || true
+    ICON_SRC=$(find /tmp/squashfs-root/usr/share/icons -name "*.png" \
+        2>/dev/null | sort | tail -1)
+    [[ -n "$ICON_SRC" ]] && cp "$ICON_SRC" "$TAGSPACES_DIR/tagspaces.png"
+    rm -rf /tmp/squashfs-root
 
-            else
-                echo "ERROR: No supported package manager found in cli distrobox." >&2
-                exit 1
-            fi
-        '
-
-        # Export 'op' to ~/.local/bin so it's available on the host
-        distrobox enter cli -- distrobox-export --bin /usr/bin/op --export-path "$HOME/.local/bin"
-        _ok "1Password CLI installed and exported to ~/.local/bin."
-
-    else
-        _ok "1Password CLI already installed in 'cli'."
-
-        # Re-export in case ~/.local/bin/op is missing (e.g. after home wipe)
-        if [[ ! -f "$HOME/.local/bin/op" ]]; then
-            distrobox enter cli -- distrobox-export --bin /usr/bin/op --export-path "$HOME/.local/bin"
-            _ok "Re-exported 'op' to ~/.local/bin."
-        fi
-    fi
+    update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+    echo "[blueak-init] TagSpaces installed."
 fi
+
+# ── FileTagger — venv is pre-built in the image at /usr/share/filetagger/venv
+# Just initialize the user config and enable the systemd user service.
+# ─────────────────────────────────────────────────────────────────────────────
+if ! systemctl --user is-enabled filetagger &>/dev/null; then
+    echo "[blueak-init] Enabling FileTagger daemon..."
+
+    # Initialize user config (~/.filetagger/config.json)
+    # FILETAGGER_OLLAMA_URL is already set via ~/.config/environment.d/filetagger.conf
+    filetagger init
+
+    # Enable and start the systemd user service
+    systemctl --user daemon-reload
+    systemctl --user enable --now filetagger
+
+    echo "[blueak-init] FileTagger daemon started."
+fi
+
+# ── Mark init complete ────────────────────────────────────────────────────────
+mkdir -p "$(dirname "$INIT_STAMP")"
+touch "$INIT_STAMP"
+
+echo "[blueak-init] First-login setup complete."
