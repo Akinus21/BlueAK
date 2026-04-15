@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "filetagger"
+version = "0.1.0"
+description = "AI-powered file manager daemon with tag-based browser"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+dependencies = [
+    # Core
+    "httpx>=0.27",
+    "watchdog>=4.0",
+    "typer>=0.12",
+    "uvicorn>=0.30",
+    "fastapi>=0.111",
+
+    # Document extraction
+    "pdfminer.six>=20221105",
+    "python-docx>=1.1",
+    "openpyxl>=3.1",
+    "python-pptx>=0.6",
+
+    # Image OCR (optional but listed - gracefully skipped if tesseract not installed)
+    "pytesseract>=0.3",
+    "Pillow>=10.0",
+]
+
+[project.optional-dependencies]
+whisper = ["openai-whisper>=20231117"]
+dev = ["pytest", "httpx"]
+
+[project.scripts]
+filetagger = "filetagger.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["filetagger*"]
+
+[tool.setuptools.package-data]
+filetagger = ["ui.html"]

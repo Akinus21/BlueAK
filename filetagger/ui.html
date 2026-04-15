@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FileTagger</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3348;
+    --accent: #7c6af7;
+    --accent2: #5a9cf5;
+    --text: #e2e4ef;
+    --text2: #8b90b0;
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --tag-bg: #2a2f4a;
+    --tag-hover: #363d62;
+    --radius: 8px;
+    --font: 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Header */
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+  header h1 { font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: -0.5px; }
+  header h1 span { color: var(--text2); font-weight: 400; font-size: 13px; margin-left: 6px; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex-shrink: 0; }
+  .status-dot.ok { background: var(--green); }
+  .status-dot.warn { background: var(--yellow); }
+  #status-text { color: var(--text2); font-size: 12px; }
+  header .spacer { flex: 1; }
+  .btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 6px 14px; border-radius: var(--radius); cursor: pointer; font-size: 13px; transition: all 0.15s; }
+  .btn:hover { background: var(--tag-hover); border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { opacity: 0.85; }
+
+  /* Layout */
+  .layout { display: flex; flex: 1; overflow: hidden; }
+
+  /* Sidebar */
+  aside { width: 220px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
+  .sidebar-section { padding: 12px 14px 8px; }
+  .sidebar-section h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text2); margin-bottom: 8px; }
+  .cat-list, .tag-cloud { display: flex; flex-direction: column; gap: 2px; }
+  .cat-item { display: flex; align-items: center; justify-content: space-between; padding: 5px 10px; border-radius: 6px; cursor: pointer; color: var(--text2); font-size: 13px; transition: all 0.15s; }
+  .cat-item:hover, .cat-item.active { background: var(--tag-bg); color: var(--text); }
+  .cat-item.active { color: var(--accent); }
+  .cat-count { font-size: 11px; background: var(--surface2); padding: 1px 7px; border-radius: 20px; }
+  .tag-scroll { flex: 1; overflow-y: auto; padding: 0 14px 12px; }
+  .tag-pill { display: inline-block; background: var(--tag-bg); color: var(--text2); border-radius: 20px; padding: 3px 10px; font-size: 12px; cursor: pointer; margin: 2px; transition: all 0.15s; border: 1px solid transparent; }
+  .tag-pill:hover { background: var(--tag-hover); color: var(--text); }
+  .tag-pill.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .tag-pill .cnt { opacity: 0.6; font-size: 11px; }
+  aside hr { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
+
+  /* Main */
+  main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .toolbar { padding: 12px 16px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  #search { flex: 1; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: var(--radius); font-size: 14px; outline: none; transition: border-color 0.15s; }
+  #search:focus { border-color: var(--accent); }
+  #search::placeholder { color: var(--text2); }
+  .results-info { color: var(--text2); font-size: 12px; white-space: nowrap; }
+  .view-toggle button { background: var(--surface2); border: 1px solid var(--border); color: var(--text2); padding: 6px 10px; cursor: pointer; font-size: 13px; }
+  .view-toggle button:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+  .view-toggle button:last-child { border-radius: 0 var(--radius) var(--radius) 0; border-left: none; }
+  .view-toggle button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* Active filters bar */
+  .active-filters { padding: 6px 16px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-height: 0; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .active-filters:empty { display: none; }
+  .filter-chip { display: flex; align-items: center; gap: 5px; background: var(--accent); color: #fff; border-radius: 20px; padding: 3px 10px; font-size: 12px; }
+  .filter-chip button { background: none; border: none; color: rgba(255,255,255,0.8); cursor: pointer; padding: 0; font-size: 14px; line-height: 1; }
+
+  /* File grid */
+  .file-area { flex: 1; overflow-y: auto; padding: 16px; }
+  .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .file-list-view { display: flex; flex-direction: column; gap: 4px; }
+
+  /* File card */
+  .file-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; cursor: pointer; transition: all 0.15s; position: relative; }
+  .file-card:hover { border-color: var(--accent); background: var(--surface2); }
+  .file-icon { font-size: 28px; margin-bottom: 8px; }
+  .file-name { font-size: 13px; font-weight: 600; word-break: break-all; margin-bottom: 4px; }
+  .file-summary { font-size: 12px; color: var(--text2); margin-bottom: 8px; line-height: 1.4; }
+  .file-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+  .file-tag { background: var(--tag-bg); color: var(--text2); border-radius: 12px; padding: 2px 8px; font-size: 11px; cursor: pointer; }
+  .file-tag:hover { background: var(--accent); color: #fff; }
+  .file-meta { font-size: 11px; color: var(--text2); display: flex; gap: 8px; }
+  .cat-badge { display: inline-block; border-radius: 4px; padding: 1px 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .error-badge { position: absolute; top: 10px; right: 10px; background: var(--red); color: #fff; border-radius: 4px; padding: 1px 6px; font-size: 10px; }
+
+  /* List row */
+  .file-row { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: grid; grid-template-columns: 32px 1fr 120px 80px 90px; gap: 10px; align-items: center; cursor: pointer; transition: all 0.15s; }
+  .file-row:hover { border-color: var(--accent); background: var(--surface2); }
+  .file-row .file-icon { font-size: 18px; margin: 0; }
+  .file-row .file-name { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-row .file-summary { font-size: 12px; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-row .row-tags { display: flex; gap: 3px; overflow: hidden; }
+  .file-row .row-tags .file-tag { white-space: nowrap; flex-shrink: 0; }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 60px 20px; color: var(--text2); }
+  .empty .icon { font-size: 48px; margin-bottom: 12px; }
+  .empty h3 { font-size: 16px; color: var(--text); margin-bottom: 6px; }
+
+  /* Settings modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; width: 480px; max-width: 95vw; padding: 24px; }
+  .modal h2 { font-size: 16px; margin-bottom: 18px; }
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-group input, .form-group select { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: var(--radius); font-size: 14px; outline: none; }
+  .form-group input:focus { border-color: var(--accent); }
+  .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; }
+  .toggle { position: relative; width: 40px; height: 22px; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; inset: 0; background: var(--surface2); border-radius: 22px; cursor: pointer; transition: 0.2s; border: 1px solid var(--border); }
+  .toggle input:checked + .toggle-slider { background: var(--accent); }
+  .toggle-slider:before { content: ''; position: absolute; width: 16px; height: 16px; left: 2px; top: 2px; background: white; border-radius: 50%; transition: 0.2s; }
+  .toggle input:checked + .toggle-slider:before { transform: translateX(18px); }
+
+  /* Queue indicator */
+  #queue-badge { background: var(--yellow); color: #000; border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: 600; display: none; }
+  #queue-badge.visible { display: inline-block; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text2); }
+
+  .cat-documents { background: #1e3a5f; color: #5a9cf5; }
+  .cat-images    { background: #3a1e5f; color: #c084fc; }
+  .cat-code      { background: #1e3a1e; color: #4ade80; }
+  .cat-audio     { background: #3a2e1e; color: #fb923c; }
+  .cat-video     { background: #3a1e1e; color: #f87171; }
+  .cat-other     { background: #2e2e2e; color: #9ca3af; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>FileTagger <span>AI File Manager</span></h1>
+  <div class="status-dot" id="status-dot"></div>
+  <span id="status-text">connecting...</span>
+  <span id="queue-badge">⏳ <span id="queue-count">0</span> queued</span>
+  <div class="spacer"></div>
+  <button class="btn" onclick="retagAll()">↺ Re-tag All</button>
+  <button class="btn" onclick="openSettings()">⚙ Settings</button>
+</header>
+
+<div class="layout">
+  <aside>
+    <div class="sidebar-section">
+      <h3>Categories</h3>
+      <div class="cat-list" id="cat-list">
+        <div class="cat-item active" data-cat="" onclick="selectCategory(this, '')">
+          All Files <span class="cat-count" id="total-count">0</span>
+        </div>
+      </div>
+    </div>
+    <hr>
+    <div class="sidebar-section" style="padding-bottom:6px">
+      <h3>Tags</h3>
+    </div>
+    <div class="tag-scroll" id="tag-cloud"></div>
+  </aside>
+
+  <main>
+    <div class="toolbar">
+      <input type="search" id="search" placeholder="Search files by name, content, summary..." oninput="debounceSearch()">
+      <span class="results-info" id="results-info"></span>
+      <div class="view-toggle">
+        <button id="btn-grid" class="active" onclick="setView('grid')" title="Grid">⊞</button>
+        <button id="btn-list" onclick="setView('list')" title="List">☰</button>
+      </div>
+    </div>
+    <div class="active-filters" id="active-filters"></div>
+    <div class="file-area" id="file-area">
+      <div class="empty">
+        <div class="icon">📂</div>
+        <h3>Loading...</h3>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal">
+    <h2>⚙ Settings</h2>
+    <div class="form-group">
+      <label>Ollama Base URL</label>
+      <input type="text" id="cfg-ollama-url" placeholder="http://localhost:11434">
+    </div>
+    <div class="form-group">
+      <label>Ollama Model</label>
+      <input type="text" id="cfg-ollama-model" placeholder="llama3.2">
+    </div>
+    <div class="form-group">
+      <label>Watch Directory</label>
+      <input type="text" id="cfg-watch-dir" placeholder="~/files">
+    </div>
+    <div class="form-group">
+      <div class="toggle-row">
+        <label style="margin:0">OCR for Images</label>
+        <label class="toggle"><input type="checkbox" id="cfg-ocr"><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="toggle-row">
+        <label style="margin:0">Whisper Audio Transcription</label>
+        <label class="toggle"><input type="checkbox" id="cfg-whisper"><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+    <div class="form-group">
+      <div class="toggle-row">
+        <label style="margin:0">Re-tag on File Modify</label>
+        <label class="toggle"><input type="checkbox" id="cfg-retag"><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn" onclick="closeSettings()">Cancel</button>
+      <button class="btn primary" onclick="saveSettings()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentView = 'grid';
+let currentCategory = '';
+let activeTags = [];
+let searchTimer = null;
+let allFiles = [];
+let statusInterval = null;
+
+const CAT_ICONS = {
+  documents: '📄', images: '🖼️', code: '💻', audio: '🎵', video: '🎬', other: '📁'
+};
+const EXT_ICONS = {
+  '.pdf':'📕','.doc':'📘','.docx':'📘','.txt':'📝','.md':'📝','.xls':'📊',
+  '.xlsx':'📊','.ppt':'📊','.pptx':'📊','.py':'🐍','.js':'📜','.ts':'📜',
+  '.sh':'⚙️','.json':'📋','.yaml':'📋','.yml':'📋','.jpg':'🖼️','.jpeg':'🖼️',
+  '.png':'🖼️','.gif':'🎞️','.mp3':'🎵','.wav':'🎵','.flac':'🎵',
+  '.mp4':'🎬','.mkv':'🎬','.avi':'🎬','.zip':'📦','.tar':'📦'
+};
+
+function fileIcon(ext) { return EXT_ICONS[ext] || '📄'; }
+function formatSize(b) {
+  if (!b) return '';
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+function formatDate(s) {
+  if (!s) return '';
+  return new Date(s).toLocaleDateString();
+}
+
+async function api(url, opts={}) {
+  const r = await fetch(url, opts);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+async function loadStatus() {
+  try {
+    const s = await api('/api/status');
+    const dot = document.getElementById('status-dot');
+    const txt = document.getElementById('status-text');
+    const badge = document.getElementById('queue-badge');
+    const qcount = document.getElementById('queue-count');
+
+    if (s.ollama_ok && s.daemon_running) {
+      dot.className = 'status-dot ok';
+      txt.textContent = `${s.ollama_model} @ ${s.ollama_url}`;
+    } else if (!s.daemon_running) {
+      dot.className = 'status-dot warn';
+      txt.textContent = 'Daemon not running';
+    } else {
+      dot.className = 'status-dot';
+      txt.textContent = s.ollama_msg;
+    }
+
+    const q = s.queue_size || 0;
+    if (q > 0) {
+      badge.classList.add('visible');
+      qcount.textContent = q + (s.current_file ? ` · ${s.current_file}` : '');
+    } else {
+      badge.classList.remove('visible');
+    }
+  } catch(e) {
+    document.getElementById('status-dot').className = 'status-dot';
+    document.getElementById('status-text').textContent = 'Server unreachable';
+  }
+}
+
+async function loadStats() {
+  try {
+    const s = await api('/api/stats');
+    document.getElementById('total-count').textContent = s.total;
+    const catList = document.getElementById('cat-list');
+    // Keep "All" item, rebuild categories
+    const existing = catList.querySelector('[data-cat=""]');
+    catList.innerHTML = '';
+    catList.appendChild(existing);
+    for (const c of s.by_category) {
+      const div = document.createElement('div');
+      div.className = 'cat-item' + (currentCategory === c.category ? ' active' : '');
+      div.dataset.cat = c.category;
+      div.onclick = () => selectCategory(div, c.category);
+      div.innerHTML = `${CAT_ICONS[c.category]||'📁'} ${c.category} <span class="cat-count">${c.count}</span>`;
+      catList.appendChild(div);
+    }
+  } catch(e) {}
+}
+
+async function loadTags() {
+  try {
+    const { tags } = await api('/api/tags');
+    const cloud = document.getElementById('tag-cloud');
+    cloud.innerHTML = '';
+    for (const t of tags.slice(0, 80)) {
+      const span = document.createElement('span');
+      span.className = 'tag-pill' + (activeTags.includes(t.tag) ? ' active' : '');
+      span.onclick = () => toggleTag(t.tag, span);
+      span.innerHTML = `${t.tag} <span class="cnt">${t.count}</span>`;
+      cloud.appendChild(span);
+    }
+  } catch(e) {}
+}
+
+async function loadFiles() {
+  const q = document.getElementById('search').value.trim();
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (currentCategory) params.set('category', currentCategory);
+  if (activeTags.length) params.set('tag', activeTags[0]); // first active tag
+
+  try {
+    const { files, count } = await api('/api/files?' + params);
+    allFiles = files;
+
+    // Client-side filter for multiple tags
+    let filtered = files;
+    if (activeTags.length > 1) {
+      filtered = files.filter(f =>
+        activeTags.every(t => f.tags.includes(t))
+      );
+    }
+
+    document.getElementById('results-info').textContent =
+      filtered.length === count ? `${count} files` : `${filtered.length} / ${count} files`;
+    renderFiles(filtered);
+  } catch(e) {
+    document.getElementById('file-area').innerHTML =
+      `<div class="empty"><div class="icon">❌</div><h3>Error loading files</h3><p>${e.message}</p></div>`;
+  }
+}
+
+function renderFiles(files) {
+  const area = document.getElementById('file-area');
+  if (!files.length) {
+    area.innerHTML = '<div class="empty"><div class="icon">🔍</div><h3>No files found</h3><p>Try adjusting your search or filters.</p></div>';
+    return;
+  }
+  if (currentView === 'grid') {
+    area.innerHTML = `<div class="file-grid">${files.map(fileCard).join('')}</div>`;
+  } else {
+    area.innerHTML = `<div class="file-list-view">${files.map(fileRow).join('')}</div>`;
+  }
+}
+
+function fileCard(f) {
+  const tags = (f.tags||[]).slice(0,6).map(t =>
+    `<span class="file-tag" onclick="filterByTag('${t}',event)">${t}</span>`
+  ).join('');
+  const errBadge = f.error ? `<span class="error-badge" title="${f.error}">ERR</span>` : '';
+  return `<div class="file-card" ondblclick="openFile(${f.id})">
+    ${errBadge}
+    <div class="file-icon">${fileIcon(f.extension)}</div>
+    <div class="file-name" title="${f.path}">${f.filename}</div>
+    <div class="file-summary">${f.summary||'<em>No summary</em>'}</div>
+    <div class="file-tags">${tags}</div>
+    <div class="file-meta">
+      <span class="cat-badge cat-${f.category}">${f.category||'?'}</span>
+      <span>${formatSize(f.size_bytes)}</span>
+      <span>${formatDate(f.tagged_at)}</span>
+    </div>
+  </div>`;
+}
+
+function fileRow(f) {
+  const tags = (f.tags||[]).slice(0,3).map(t =>
+    `<span class="file-tag" onclick="filterByTag('${t}',event)">${t}</span>`
+  ).join('');
+  return `<div class="file-row" ondblclick="openFile(${f.id})">
+    <span class="file-icon">${fileIcon(f.extension)}</span>
+    <div>
+      <div class="file-name" title="${f.path}">${f.filename}</div>
+      <div class="file-summary">${f.summary||''}</div>
+    </div>
+    <div class="row-tags">${tags}</div>
+    <span class="cat-badge cat-${f.category}">${f.category||'?'}</span>
+    <span style="color:var(--text2);font-size:12px">${formatSize(f.size_bytes)}</span>
+  </div>`;
+}
+
+function filterByTag(tag, event) {
+  event.stopPropagation();
+  if (!activeTags.includes(tag)) {
+    activeTags.push(tag);
+    updateFilterChips();
+    loadFiles();
+    loadTags();
+  }
+}
+
+function toggleTag(tag, el) {
+  const idx = activeTags.indexOf(tag);
+  if (idx === -1) {
+    activeTags.push(tag);
+    el.classList.add('active');
+  } else {
+    activeTags.splice(idx, 1);
+    el.classList.remove('active');
+  }
+  updateFilterChips();
+  loadFiles();
+}
+
+function updateFilterChips() {
+  const bar = document.getElementById('active-filters');
+  bar.innerHTML = activeTags.map(t =>
+    `<span class="filter-chip">${t} <button onclick="removeTag('${t}')">×</button></span>`
+  ).join('');
+}
+
+function removeTag(tag) {
+  activeTags = activeTags.filter(t => t !== tag);
+  updateFilterChips();
+  loadFiles();
+  loadTags();
+}
+
+function selectCategory(el, cat) {
+  document.querySelectorAll('.cat-item').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+  currentCategory = cat;
+  loadFiles();
+}
+
+function setView(v) {
+  currentView = v;
+  document.getElementById('btn-grid').classList.toggle('active', v==='grid');
+  document.getElementById('btn-list').classList.toggle('active', v==='list');
+  renderFiles(allFiles);
+}
+
+function debounceSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(loadFiles, 300);
+}
+
+async function openFile(id) {
+  try { await api(`/api/open/${id}`); } catch(e) { alert('Could not open file: ' + e.message); }
+}
+
+async function retagAll() {
+  if (!confirm('Queue all files for re-tagging? This may take a while.')) return;
+  try {
+    const r = await api('/api/retag-all', {method:'POST'});
+    alert(`Queued ${r.queued} files for re-tagging.`);
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// Settings
+async function openSettings() {
+  const cfg = await api('/api/config');
+  document.getElementById('cfg-ollama-url').value = cfg.ollama_base_url || '';
+  document.getElementById('cfg-ollama-model').value = cfg.ollama_model || '';
+  document.getElementById('cfg-watch-dir').value = cfg.watch_dir || '';
+  document.getElementById('cfg-ocr').checked = cfg.ocr_enabled !== false;
+  document.getElementById('cfg-whisper').checked = !!cfg.whisper_enabled;
+  document.getElementById('cfg-retag').checked = cfg.retag_on_modify !== false;
+  document.getElementById('settings-modal').classList.add('open');
+}
+
+function closeSettings() {
+  document.getElementById('settings-modal').classList.remove('open');
+}
+
+async function saveSettings() {
+  const update = {
+    ollama_base_url: document.getElementById('cfg-ollama-url').value,
+    ollama_model: document.getElementById('cfg-ollama-model').value,
+    watch_dir: document.getElementById('cfg-watch-dir').value,
+    ocr_enabled: document.getElementById('cfg-ocr').checked,
+    whisper_enabled: document.getElementById('cfg-whisper').checked,
+    retag_on_modify: document.getElementById('cfg-retag').checked,
+  };
+  try {
+    await api('/api/config', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(update)});
+    closeSettings();
+    loadStatus();
+  } catch(e) { alert('Save failed: ' + e.message); }
+}
+
+// Click outside modal to close
+document.getElementById('settings-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeSettings();
+});
+
+// Init
+async function init() {
+  await loadStatus();
+  await loadStats();
+  await loadTags();
+  await loadFiles();
+  statusInterval = setInterval(async () => {
+    await loadStatus();
+    await loadStats();
+    await loadTags();
+    await loadFiles();
+  }, 5000);
+}
+
+init();
+</script>
+</body>
+</html>
