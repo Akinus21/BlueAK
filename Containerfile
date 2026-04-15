@@ -160,7 +160,7 @@ RUN python3 -m venv /usr/share/filetagger/venv && \
         python-pptx \
         pytesseract \
         Pillow && \
-    /usr/share/filetagger/venv/bin/pip install -q -e /usr/share/filetagger
+    /usr/share/filetagger/venv/bin/pip install -q -e /usr/share/filetagger/src
 
 # Global wrapper so 'filetagger' works for any user without PATH gymnastics
 RUN printf '#!/usr/bin/env bash\nexec /usr/share/filetagger/venv/bin/filetagger "$@"\n' \
