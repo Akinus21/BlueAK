@@ -76,7 +76,7 @@ RUN dnf install -y 1password-cli
 #   flatpak install flathub com.onepassword.1Password
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 6. Zsh + shell tooling
+# 6. Zsh + shell tooling + Python + OCR deps
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RUN dnf install -y \
     zsh \
@@ -89,7 +89,15 @@ RUN dnf install -y \
     btop \
     fd-find \
     ripgrep \
-    just
+    just \
+    git \
+    python3 \
+    python3-pip \
+    python3-virtualenv \
+    tesseract \
+    tesseract-langpack-eng \
+    poppler-utils \
+    odt2txt
 
 RUN sed -i 's|^SHELL=.*|SHELL=/bin/zsh|' /etc/default/useradd 2>/dev/null || \
     echo 'SHELL=/bin/zsh' >> /etc/default/useradd
@@ -130,7 +138,52 @@ COPY config/systemd/bootc-nightly-reboot.timer   /etc/systemd/system/bootc-night
 RUN systemctl enable bootc-nightly-reboot.timer
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 10. Configs + first-login bootstrap
+# 10. FileTagger — bake Python source into image, build venv at image build time
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Copy the full filetagger package into a stable system path
+COPY filetagger/                    /usr/share/filetagger/filetagger/
+COPY filetagger/pyproject.toml      /usr/share/filetagger/pyproject.toml
+COPY filetagger/README.md           /usr/share/filetagger/README.md
+
+# Build a system-level venv so every user shares the same installed package.
+# The venv lives on the immutable base — no per-user pip installs needed.
+RUN python3 -m venv /usr/share/filetagger/venv && \
+    /usr/share/filetagger/venv/bin/pip install -q --upgrade pip && \
+    /usr/share/filetagger/venv/bin/pip install -q \
+        httpx \
+        watchdog \
+        typer \
+        uvicorn \
+        fastapi \
+        "pdfminer.six" \
+        python-docx \
+        openpyxl \
+        python-pptx \
+        pytesseract \
+        Pillow && \
+    /usr/share/filetagger/venv/bin/pip install -q -e /usr/share/filetagger
+
+# Global wrapper so 'filetagger' works for any user without PATH gymnastics
+RUN printf '#!/usr/bin/env bash\nexec /usr/share/filetagger/venv/bin/filetagger "$@"\n' \
+    > /usr/local/bin/filetagger && \
+    chmod +x /usr/local/bin/filetagger
+
+# Seed systemd user service into /etc/skel so every new user gets it
+RUN mkdir -p /etc/skel/.config/systemd/user
+COPY config/systemd/filetagger.service \
+     /etc/skel/.config/systemd/user/filetagger.service
+
+# Seed environment.d so FILETAGGER_OLLAMA_URL is set for all user services
+RUN mkdir -p /etc/skel/.config/environment.d
+COPY config/environment.d/filetagger.conf \
+     /etc/skel/.config/environment.d/filetagger.conf
+
+# Pre-create the default files folder in skel
+RUN mkdir -p /etc/skel/files
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 11. Configs + first-login bootstrap
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 COPY config/niri/     /etc/skel/.config/niri/
 COPY config/noctalia/ /etc/skel/.config/noctalia/
@@ -138,6 +191,6 @@ COPY config/profile.d/blueak-init.sh /etc/profile.d/blueak-init.sh
 RUN chmod +x /etc/profile.d/blueak-init.sh
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 11. Cleanup
+# 12. Cleanup
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RUN dnf clean all && rm -rf /var/cache/dnf/*
