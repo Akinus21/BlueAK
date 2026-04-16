@@ -163,7 +163,8 @@ RUN python3 -m venv /usr/share/filetagger/venv && \
     /usr/share/filetagger/venv/bin/pip install -q -e /usr/share/filetagger/src
 
 # Global wrapper so 'filetagger' works for any user without PATH gymnastics
-RUN printf '#!/usr/bin/env bash\nexec /usr/share/filetagger/venv/bin/filetagger "$@"\n' \
+RUN mkdir -p /usr/local/bin && \
+    printf '#!/usr/bin/env bash\nexec /usr/share/filetagger/venv/bin/filetagger "$@"\n' \
     > /usr/local/bin/filetagger && \
     chmod +x /usr/local/bin/filetagger
 
