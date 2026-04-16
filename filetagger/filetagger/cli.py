@@ -37,17 +37,26 @@ def init(
     ollama_model: Optional[str] = typer.Option(None, "--model", help="Ollama model name"),
 ):
     """Initialize FileTagger config and watch directory."""
-    created = init_config()
+    # Apply any CLI-provided values first so they show up during prompting
     config = load_config()
-
     if watch_dir:
         config["watch_dir"] = str(Path(watch_dir).expanduser())
     if ollama_url:
         config["ollama_base_url"] = ollama_url
     if ollama_model:
         config["ollama_model"] = ollama_model
-
     save_config(config)
+
+    # Now run full init — will prompt interactively if essentials still missing
+    from .config import needs_first_run_setup, first_run_setup
+    config = load_config()
+    if needs_first_run_setup(config):
+        config = first_run_setup(config)
+        save_config(config)
+        created = True
+    else:
+        created = not CONFIG_PATH.exists()
+
     Path(config["watch_dir"]).mkdir(parents=True, exist_ok=True)
 
     if created:
@@ -79,15 +88,27 @@ def start(
 ):
     """Start the FileTagger daemon and web UI."""
     setup_logging(log_level)
-    init_config()
-    config = load_config()
 
+    # Apply any CLI overrides before setup check
+    config = load_config()
     if ollama_url:
         config["ollama_base_url"] = ollama_url
     if ollama_model:
         config["ollama_model"] = ollama_model
     if watch_dir:
         config["watch_dir"] = str(Path(watch_dir).expanduser())
+    config["web_host"] = host
+    config["web_port"] = port
+    save_config(config)
+
+    # Prompt for essentials if still missing (and we're in a terminal)
+    from .config import needs_first_run_setup, first_run_setup
+    config = load_config()
+    if needs_first_run_setup(config):
+        config = first_run_setup(config)
+        save_config(config)
+
+    config = load_config()
     config["web_host"] = host
     config["web_port"] = port
 
