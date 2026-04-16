@@ -167,6 +167,10 @@ RUN printf '#!/usr/bin/env bash\nexec /usr/share/filetagger/venv/bin/filetagger 
     > /usr/bin/filetagger && \
     chmod +x /usr/bin/filetagger
 
+# Increase inotify limits for filetagger watchdog
+RUN echo 'fs.inotify.max_user_watches=524288' > /etc/sysctl.d/99-filetagger.conf && \
+    echo 'fs.inotify.max_user_instances=512' >> /etc/sysctl.d/99-filetagger.conf
+
 # Seed systemd user service into /etc/skel so every new user gets it
 RUN mkdir -p /etc/skel/.config/systemd/user
 COPY config/systemd/filetagger.service \
