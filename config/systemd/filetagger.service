@@ -7,7 +7,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 # The venv is created by blueak-init.sh on first login
-ExecStart=/usr/local/bin/filetagger start --fg
+ExecStart=/usr/bin/filetagger start --fg
 Restart=on-failure
 RestartSec=10
 # Pick up FILETAGGER_OLLAMA_URL and friends from environment.d
