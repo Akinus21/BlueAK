@@ -218,7 +218,14 @@
     <h2>⚙ Settings</h2>
     <div class="form-group"><label>Ollama Base URL</label><input type="text" id="cfg-ollama-url"></div>
     <div class="form-group"><label>Ollama Model</label><input type="text" id="cfg-ollama-model"></div>
-    <div class="form-group"><label>Watch Directory</label><input type="text" id="cfg-watch-dir"></div>
+    <div class="form-group">
+      <label>Watch Directories</label>
+      <div id="watch-dirs-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="new-watch-dir" placeholder="~/Downloads or /path/to/folder" style="flex:1">
+        <button class="btn success" onclick="addWatchDir()" style="flex-shrink:0">+ Add</button>
+      </div>
+    </div>
     <div class="form-group"><div class="toggle-row"><label style="margin:0">OCR for Images</label><label class="toggle"><input type="checkbox" id="cfg-ocr"><span class="toggle-slider"></span></label></div></div>
     <div class="form-group"><div class="toggle-row"><label style="margin:0">Whisper Audio</label><label class="toggle"><input type="checkbox" id="cfg-whisper"><span class="toggle-slider"></span></label></div></div>
     <div class="form-group"><div class="toggle-row"><label style="margin:0">Re-tag on Modify</label><label class="toggle"><input type="checkbox" id="cfg-retag"><span class="toggle-slider"></span></label></div></div>
@@ -252,7 +259,8 @@ async function loadStatus(){
     const s=await api('/api/status');
     const dot=document.getElementById('status-dot');
     dot.className='status-dot'+(s.ollama_ok&&s.daemon_running?' ok':s.daemon_running?'':' warn');
-    document.getElementById('status-text').textContent=s.ollama_ok?`${s.ollama_model} @ ${s.ollama_url}`:s.ollama_msg;
+    const dirCount=(s.watch_dirs||[]).length;
+    document.getElementById('status-text').textContent=s.ollama_ok?`${s.ollama_model} @ ${s.ollama_url} · ${dirCount} dir${dirCount!==1?'s':''}`:s.ollama_msg;
     const q=s.queue_size||0;
     const badge=document.getElementById('queue-badge');
     badge.classList.toggle('visible',q>0);
@@ -441,15 +449,51 @@ async function openSettings(){
   const cfg=await api('/api/config');
   document.getElementById('cfg-ollama-url').value=cfg.ollama_base_url||'';
   document.getElementById('cfg-ollama-model').value=cfg.ollama_model||'';
-  document.getElementById('cfg-watch-dir').value=cfg.watch_dir||'';
   document.getElementById('cfg-ocr').checked=cfg.ocr_enabled!==false;
   document.getElementById('cfg-whisper').checked=!!cfg.whisper_enabled;
   document.getElementById('cfg-retag').checked=cfg.retag_on_modify!==false;
+  // Load watch dirs
+  const {watch_dirs}=await api('/api/watch-dirs');
+  renderWatchDirs(watch_dirs);
   document.getElementById('settings-modal').classList.add('open');
+}
+
+function renderWatchDirs(dirs){
+  const list=document.getElementById('watch-dirs-list');
+  list.innerHTML=dirs.map(d=>`
+    <div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 10px">
+      <span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${d.path}">${d.path}</span>
+      <span style="font-size:11px;color:${d.tagstudio_ready?'var(--green)':'var(--yellow)'};flex-shrink:0">
+        ${d.tagstudio_ready?'✓ TS':'⏳ TS'}
+      </span>
+      <button onclick="removeWatchDir('${d.path}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:0;line-height:1;flex-shrink:0">×</button>
+    </div>`).join('');
+}
+
+async function addWatchDir(){
+  const dir=document.getElementById('new-watch-dir').value.trim();
+  if(!dir){alert('Enter a directory path');return;}
+  try{
+    const r=await api('/api/watch-dirs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({directory:dir})});
+    document.getElementById('new-watch-dir').value='';
+    renderWatchDirs(r.watch_dirs.map(p=>({path:p,tagstudio_ready:false})));
+    // Refresh with TS status
+    const {watch_dirs}=await api('/api/watch-dirs');
+    renderWatchDirs(watch_dirs);
+  }catch(e){alert('Error: '+e.message);}
+}
+
+async function removeWatchDir(dir){
+  if(!confirm(`Remove "${dir}" from watch list?`))return;
+  try{
+    const r=await api('/api/watch-dirs',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({directory:dir})});
+    const {watch_dirs}=await api('/api/watch-dirs');
+    renderWatchDirs(watch_dirs);
+  }catch(e){alert('Error: '+e.message);}
 }
 function closeSettings(){document.getElementById('settings-modal').classList.remove('open');}
 async function saveSettings(){
-  const u={ollama_base_url:document.getElementById('cfg-ollama-url').value,ollama_model:document.getElementById('cfg-ollama-model').value,watch_dir:document.getElementById('cfg-watch-dir').value,ocr_enabled:document.getElementById('cfg-ocr').checked,whisper_enabled:document.getElementById('cfg-whisper').checked,retag_on_modify:document.getElementById('cfg-retag').checked};
+  const u={ollama_base_url:document.getElementById('cfg-ollama-url').value,ollama_model:document.getElementById('cfg-ollama-model').value,ocr_enabled:document.getElementById('cfg-ocr').checked,whisper_enabled:document.getElementById('cfg-whisper').checked,retag_on_modify:document.getElementById('cfg-retag').checked};
   try{await api('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(u)});closeSettings();loadStatus();}
   catch(e){alert('Save failed: '+e.message);}
 }

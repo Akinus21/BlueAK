@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .db import get_conn, init_db, search_files, all_tags, stats
-from .config import load_config, save_config
+from .config import load_config, save_config, add_watch_dir, remove_watch_dir
 from .tagger import check_ollama
 from .taxonomy import (
     load_taxonomy, save_taxonomy, load_pending,
@@ -43,7 +43,7 @@ def create_app(config: dict, daemon=None):
         daemon_stats = _daemon.worker_stats if _daemon else {}
         return {
             "daemon_running": _daemon.is_running if _daemon else False,
-            "watch_dir": _config["watch_dir"],
+            "watch_dirs": _config.get("watch_dirs", []),
             "ollama_url": _config["ollama_base_url"],
             "ollama_model": _config["ollama_model"],
             "ollama_ok": ollama_ok,
@@ -79,7 +79,7 @@ def create_app(config: dict, daemon=None):
     class ConfigUpdate(BaseModel):
         ollama_base_url: Optional[str] = None
         ollama_model: Optional[str] = None
-        watch_dir: Optional[str] = None
+        watch_dirs: Optional[list] = None
         ocr_enabled: Optional[bool] = None
         whisper_enabled: Optional[bool] = None
         retag_on_modify: Optional[bool] = None
@@ -132,6 +132,37 @@ def create_app(config: dict, daemon=None):
             raise HTTPException(404, "File not found on disk")
         subprocess.Popen(["xdg-open", path])
         return {"ok": True}
+
+    # --- Watch Dirs API ---
+
+    class DirBody(BaseModel):
+        directory: str
+
+    @app.post("/api/watch-dirs")
+    def add_dir(body: DirBody):
+        global _config
+        _config = add_watch_dir(body.directory, _config)
+        return {"ok": True, "watch_dirs": _config["watch_dirs"]}
+
+    @app.delete("/api/watch-dirs")
+    def remove_dir(body: DirBody):
+        global _config
+        _config = remove_watch_dir(body.directory, _config)
+        return {"ok": True, "watch_dirs": _config["watch_dirs"]}
+
+    @app.get("/api/watch-dirs")
+    def get_watch_dirs():
+        from .tagstudio import library_exists
+        dirs = _config.get("watch_dirs", [])
+        return {
+            "watch_dirs": [
+                {
+                    "path": d,
+                    "tagstudio_ready": library_exists(d),
+                }
+                for d in dirs
+            ]
+        }
 
     # --- Taxonomy API ---
 

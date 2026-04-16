@@ -1,4 +1,4 @@
-"""Background daemon: watches the files folder and tags new/modified files."""
+"""Background daemon: watches multiple folders and tags new/modified files."""
 import time
 import logging
 import threading
@@ -20,7 +20,6 @@ logger = logging.getLogger("filetagger.daemon")
 
 
 class FileQueue:
-    """Thread-safe deduplicated file queue."""
     def __init__(self):
         self._queue = queue.Queue()
         self._seen = set()
@@ -41,6 +40,9 @@ class FileQueue:
     def task_done(self):
         self._queue.task_done()
 
+    def qsize(self):
+        return self._queue.qsize()
+
 
 class FileEventHandler(FileSystemEventHandler):
     def __init__(self, file_queue: FileQueue, supported_extensions: set):
@@ -53,25 +55,24 @@ class FileEventHandler(FileSystemEventHandler):
             return False
         if p.name.startswith("."):
             return False
+        # Skip .TagStudio internals
+        if ".TagStudio" in p.parts:
+            return False
         if p.suffix.lower() not in self.supported:
             return False
         return True
 
     def on_created(self, event):
         if not event.is_directory and self._should_process(event.src_path):
-            logger.debug(f"New file detected: {event.src_path}")
-            # Small delay to ensure file is fully written
             time.sleep(0.5)
             self.queue.put(event.src_path)
 
     def on_modified(self, event):
         if not event.is_directory and self._should_process(event.src_path):
-            logger.debug(f"Modified file detected: {event.src_path}")
             self.queue.put(event.src_path)
 
     def on_deleted(self, event):
         if not event.is_directory:
-            logger.debug(f"Deleted file: {event.src_path}")
             self.queue.put(f"__DELETE__:{event.src_path}")
 
     def on_moved(self, event):
@@ -82,7 +83,6 @@ class FileEventHandler(FileSystemEventHandler):
 
 
 class TagWorker(threading.Thread):
-    """Worker thread that processes files from the queue."""
     def __init__(self, file_queue: FileQueue, config: dict, db_path: str):
         super().__init__(daemon=True, name="TagWorker")
         self.queue = file_queue
@@ -104,12 +104,13 @@ class TagWorker(threading.Thread):
                 path = self.queue.get(timeout=1)
             except queue.Empty:
                 continue
-
             try:
                 if path.startswith("__DELETE__:"):
                     actual = path[len("__DELETE__:"):]
                     remove_file(conn, actual)
                     delete_sidecar(actual)
+                    # Remove from TagStudio too
+                    self._ts_remove(actual)
                     logger.info(f"Removed: {actual}")
                 else:
                     self._process_file(conn, path)
@@ -118,9 +119,30 @@ class TagWorker(threading.Thread):
                 self.errors += 1
             finally:
                 self.queue.task_done()
-
         conn.close()
         logger.info("TagWorker stopped")
+
+    def _find_watch_dir(self, path: str) -> str:
+        """Return which watch_dir contains this path."""
+        p = Path(path)
+        for d in self.config.get("watch_dirs", []):
+            try:
+                p.relative_to(d)
+                return d
+            except ValueError:
+                continue
+        # Fallback to first
+        dirs = self.config.get("watch_dirs", [])
+        return dirs[0] if dirs else ""
+
+    def _ts_remove(self, path: str):
+        try:
+            from .tagstudio import remove_from_tagstudio
+            watch_dir = self._find_watch_dir(path)
+            if watch_dir:
+                remove_from_tagstudio(path, watch_dir)
+        except Exception as e:
+            logger.debug(f"TagStudio remove skipped: {e}")
 
     def _process_file(self, conn, path: str):
         p = Path(path)
@@ -136,25 +158,29 @@ class TagWorker(threading.Thread):
         logger.info(f"Processing: {p.name}")
 
         supported = self.config["supported_extensions"]
-        all_exts = {ext for exts in supported.values() for ext in exts}
         category = get_category(p.suffix, supported)
         size_bytes = p.stat().st_size
 
         try:
             content = extract_text(path, category, self.config)
-            # Pass approved tag library to AI so it prefers existing tags
             current_approved = approved_tags()
             summary, ai_tags = tag_file(
                 p.name, category, p.suffix.lower(),
                 content, size_bytes, self.config,
                 approved_tags=current_approved
             )
-            # Split into approved (apply now) and new (queue for review)
             good_tags, new_tags = resolve_tags(ai_tags, p.name)
             if new_tags:
                 logger.info(f"Pending approval: {p.name} → new tags [{', '.join(new_tags)}]")
+
             upsert_file(conn, path, category, summary, good_tags, size_bytes, fhash)
             write_sidecar(path, good_tags, summary)
+
+            # Write to TagStudio if library exists
+            watch_dir = self._find_watch_dir(path)
+            if watch_dir:
+                self._write_tagstudio(path, good_tags, summary, watch_dir)
+
             self.processed += 1
             logger.info(f"Tagged: {p.name} → [{', '.join(good_tags)}]")
         except Exception as e:
@@ -164,18 +190,61 @@ class TagWorker(threading.Thread):
         finally:
             self.current_file = None
 
+    def _write_tagstudio(self, path: str, tags: list, summary: str, watch_dir: str):
+        try:
+            from .tagstudio import write_to_tagstudio, library_exists
+            if library_exists(watch_dir):
+                write_to_tagstudio(path, tags, summary, watch_dir)
+        except Exception as e:
+            logger.debug(f"TagStudio write skipped: {e}")
+
+
+class LibraryWatcher(threading.Thread):
+    """
+    Polls for TagStudio library existence across all watch dirs.
+    Logs a helpful message when waiting, stays quiet once found.
+    """
+    def __init__(self, config: dict, stop_event: threading.Event):
+        super().__init__(daemon=True, name="LibraryWatcher")
+        self.config = config
+        self._stop = stop_event
+        self._found: set[str] = set()
+        self._waiting_logged: set[str] = set()
+
+    def run(self):
+        from .tagstudio import library_exists, _ts_db_path
+        while not self._stop.is_set():
+            for watch_dir in self.config.get("watch_dirs", []):
+                if watch_dir in self._found:
+                    continue
+                if library_exists(watch_dir):
+                    if watch_dir in self._waiting_logged:
+                        logger.info(
+                            f"✓ TagStudio library found: {watch_dir} — tag sync active"
+                        )
+                    self._found.add(watch_dir)
+                elif watch_dir not in self._waiting_logged:
+                    db_path = _ts_db_path(watch_dir)
+                    logger.info(
+                        f"Waiting for TagStudio library at {db_path}\n"
+                        f"  Open TagStudio → File → Open/Create Library → select '{watch_dir}'"
+                    )
+                    self._waiting_logged.add(watch_dir)
+            self._stop.wait(30)
+
 
 class Daemon:
-    """Main daemon orchestrator."""
     def __init__(self, config: dict = None):
         self.config = config or load_config()
         self.db_path = self.config["db_path"]
         self._conn = init_db(self.db_path)
         self._file_queue = FileQueue()
-        init_taxonomy()  # seed default tags if first run
         self._worker = None
         self._observer = None
+        self._lib_watcher = None
+        self._stop_event = threading.Event()
         self._running = False
+        init_taxonomy()
 
     @property
     def is_running(self) -> bool:
@@ -188,52 +257,63 @@ class Daemon:
                 "processed": self._worker.processed,
                 "errors": self._worker.errors,
                 "current_file": self._worker.current_file,
-                "queue_size": self._file_queue._queue.qsize(),
+                "queue_size": self._file_queue.qsize(),
             }
         return {"processed": 0, "errors": 0, "current_file": None, "queue_size": 0}
 
     def start(self):
         if self._running:
-            logger.warning("Daemon already running")
             return
 
-        watch_dir = self.config["watch_dir"]
-        Path(watch_dir).mkdir(parents=True, exist_ok=True)
+        watch_dirs = self.config.get("watch_dirs", [])
+        for d in watch_dirs:
+            Path(d).mkdir(parents=True, exist_ok=True)
 
         supported = self.config["supported_extensions"]
         all_exts = {ext for exts in supported.values() for ext in exts}
 
-        # Start worker
+        # Start tag worker
         self._worker = TagWorker(self._file_queue, self.config, self.db_path)
         self._worker.start()
 
-        # Set up watchdog
+        # Start TagStudio library watcher
+        self._lib_watcher = LibraryWatcher(self.config, self._stop_event)
+        self._lib_watcher.start()
+
+        # Start filesystem observer — one handler, multiple scheduled dirs
         handler = FileEventHandler(self._file_queue, all_exts)
         self._observer = Observer()
-        self._observer.schedule(handler, watch_dir, recursive=True)
+        for watch_dir in watch_dirs:
+            self._observer.schedule(handler, watch_dir, recursive=True)
+            logger.info(f"Watching: {watch_dir}")
         self._observer.start()
 
         self._running = True
-        logger.info(f"Daemon started, watching: {watch_dir}")
+        logger.info(f"Daemon started, watching {len(watch_dirs)} director(y/ies)")
 
-        # Initial scan
-        self._initial_scan(watch_dir, all_exts)
+        # Initial scan of all watch dirs
+        self._initial_scan(watch_dirs, all_exts)
 
-    def _initial_scan(self, watch_dir: str, all_exts: set):
+    def _initial_scan(self, watch_dirs: list, all_exts: set):
         logger.info("Running initial scan...")
         count = 0
-        for p in Path(watch_dir).rglob("*"):
-            if p.is_file() and not p.name.startswith(".") and p.suffix.lower() in all_exts:
-                fhash = file_hash(str(p))
-                if needs_reindex(self._conn, str(p), fhash):
-                    self._file_queue.put(str(p))
-                    count += 1
+        for watch_dir in watch_dirs:
+            for p in Path(watch_dir).rglob("*"):
+                if (p.is_file()
+                        and not p.name.startswith(".")
+                        and ".TagStudio" not in p.parts
+                        and p.suffix.lower() in all_exts):
+                    fhash = file_hash(str(p))
+                    if needs_reindex(self._conn, str(p), fhash):
+                        self._file_queue.put(str(p))
+                        count += 1
         logger.info(f"Initial scan queued {count} files")
 
     def stop(self):
         if not self._running:
             return
         logger.info("Stopping daemon...")
+        self._stop_event.set()
         if self._observer:
             self._observer.stop()
             self._observer.join()
@@ -244,18 +324,25 @@ class Daemon:
         logger.info("Daemon stopped")
 
     def retag_all(self):
-        """Force re-tag all files in watch dir."""
-        watch_dir = self.config["watch_dir"]
+        """Force re-tag all files across all watch dirs."""
+        watch_dirs = self.config.get("watch_dirs", [])
         supported = self.config["supported_extensions"]
         all_exts = {ext for exts in supported.values() for ext in exts}
         count = 0
-        for p in Path(watch_dir).rglob("*"):
-            if p.is_file() and not p.name.startswith(".") and p.suffix.lower() in all_exts:
-                self._file_queue.put(str(p))
-                count += 1
+        for watch_dir in watch_dirs:
+            for p in Path(watch_dir).rglob("*"):
+                if (p.is_file()
+                        and not p.name.startswith(".")
+                        and ".TagStudio" not in p.parts
+                        and p.suffix.lower() in all_exts):
+                    self._file_queue.put(str(p))
+                    count += 1
         logger.info(f"Queued {count} files for re-tagging")
         return count
 
     def retag_file(self, path: str):
-        """Force re-tag a single file."""
         self._file_queue.put(path)
+
+    def reload_watch_dirs(self):
+        """Hot-reload watch dirs after config change (requires daemon restart)."""
+        logger.info("Watch dir change detected — restart daemon to apply")

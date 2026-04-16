@@ -11,7 +11,7 @@ from typing import Optional
 import typer
 import uvicorn
 
-from .config import load_config, save_config, init_config, CONFIG_PATH
+from .config import load_config, save_config, init_config, add_watch_dir, remove_watch_dir, CONFIG_PATH
 from .db import init_db, search_files, all_tags, stats
 from .tagger import check_ollama
 from .daemon import Daemon
@@ -64,7 +64,7 @@ def init(
     else:
         typer.echo(f"✓ Updated config: {CONFIG_PATH}")
 
-    typer.echo(f"  Watch dir : {config['watch_dir']}")
+    typer.echo(f"  Watch dirs: {chr(10).join(config.get('watch_dirs', []))}")
     typer.echo(f"  Ollama URL: {config['ollama_base_url']}")
     typer.echo(f"  Model     : {config['ollama_model']}")
 
@@ -170,7 +170,8 @@ def status():
     """Show daemon and Ollama status."""
     config = load_config()
     typer.echo(f"Config   : {CONFIG_PATH}")
-    typer.echo(f"Watch dir: {config['watch_dir']}")
+    for d in config.get("watch_dirs", []):
+        typer.echo(f"Watch dir : {d}")
     typer.echo(f"Ollama   : {config['ollama_base_url']} / {config['ollama_model']}")
     typer.echo(f"Web UI   : http://{config['web_host']}:{config['web_port']}")
 
@@ -313,3 +314,40 @@ def retag_all(
             conn.commit()
             typer.echo("✓ Cleared hashes in DB. Restart daemon to re-tag everything.")
         raise typer.Exit(1)
+
+
+@app.command(name="add-dir")
+def add_dir(
+    directory: str = typer.Argument(..., help="Directory to add to watch list"),
+):
+    """Add a directory to the watch list."""
+    config = add_watch_dir(directory)
+    typer.echo(f"✓ Added: {directory}")
+    typer.echo("  Watch dirs:")
+    for d in config["watch_dirs"]:
+        typer.echo(f"    {d}")
+    typer.echo("  Restart daemon to apply: systemctl --user restart filetagger")
+
+
+@app.command(name="remove-dir")
+def remove_dir(
+    directory: str = typer.Argument(..., help="Directory to remove from watch list"),
+):
+    """Remove a directory from the watch list."""
+    config = remove_watch_dir(directory)
+    typer.echo(f"✓ Removed: {directory}")
+    typer.echo("  Watch dirs:")
+    for d in config["watch_dirs"]:
+        typer.echo(f"    {d}")
+    typer.echo("  Restart daemon to apply: systemctl --user restart filetagger")
+
+
+@app.command(name="list-dirs")
+def list_dirs():
+    """List all watched directories and their TagStudio library status."""
+    from .tagstudio import library_exists
+    config = load_config()
+    typer.echo("Watched directories:")
+    for d in config.get("watch_dirs", []):
+        ts = "✓ TagStudio ready" if library_exists(d) else "⏳ Waiting for TagStudio library"
+        typer.echo(f"  {d}  [{ts}]")
