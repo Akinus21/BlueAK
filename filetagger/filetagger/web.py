@@ -12,6 +12,12 @@ from pydantic import BaseModel
 from .db import get_conn, init_db, search_files, all_tags, stats
 from .config import load_config, save_config
 from .tagger import check_ollama
+from .taxonomy import (
+    load_taxonomy, save_taxonomy, load_pending,
+    add_approved_tag, remove_approved_tag, add_alias,
+    approve_pending_tag, reject_pending_tag, merge_pending_tag,
+    pending_count, approved_tags, init_taxonomy
+)
 
 logger = logging.getLogger("filetagger.web")
 
@@ -42,6 +48,7 @@ def create_app(config: dict, daemon=None):
             "ollama_model": _config["ollama_model"],
             "ollama_ok": ollama_ok,
             "ollama_msg": ollama_msg,
+            "pending_count": pending_count(),
             **daemon_stats
         }
 
@@ -125,6 +132,91 @@ def create_app(config: dict, daemon=None):
             raise HTTPException(404, "File not found on disk")
         subprocess.Popen(["xdg-open", path])
         return {"ok": True}
+
+    # --- Taxonomy API ---
+
+    @app.get("/api/taxonomy")
+    def get_taxonomy():
+        init_taxonomy()
+        tax = load_taxonomy()
+        by_category = {}
+        for tag, meta in sorted(tax.items()):
+            cat = meta.get("category", "misc")
+            by_category.setdefault(cat, []).append({
+                "tag": tag,
+                "aliases": meta.get("aliases", []),
+                "category": cat,
+                "added_at": meta.get("added_at", ""),
+            })
+        return {"taxonomy": tax, "by_category": by_category, "total": len(tax)}
+
+    class NewTag(BaseModel):
+        tag: str
+        category: str = ""
+        aliases: list = []
+
+    @app.post("/api/taxonomy")
+    def create_tag(body: NewTag):
+        add_approved_tag(body.tag, category=body.category, aliases=body.aliases)
+        return {"ok": True, "tag": body.tag.lower()}
+
+    @app.delete("/api/taxonomy/{tag}")
+    def delete_tag(tag: str):
+        remove_approved_tag(tag)
+        return {"ok": True}
+
+    class AliasBody(BaseModel):
+        alias: str
+
+    @app.post("/api/taxonomy/{tag}/alias")
+    def add_tag_alias(tag: str, body: AliasBody):
+        add_alias(tag, body.alias)
+        return {"ok": True}
+
+    @app.get("/api/pending")
+    def get_pending():
+        pending = load_pending()
+        items = []
+        for tag, meta in sorted(pending.items(),
+                                 key=lambda x: x[1].get("file_count", 0), reverse=True):
+            items.append({"tag": tag, **meta})
+        return {"pending": items, "count": len(items)}
+
+    class PendingAction(BaseModel):
+        action: str          # "approve" | "reject" | "merge"
+        category: str = ""
+        merge_into: str = ""
+
+    @app.post("/api/pending/{tag}")
+    def handle_pending(tag: str, body: PendingAction):
+        if body.action == "approve":
+            ok = approve_pending_tag(tag, category=body.category)
+        elif body.action == "reject":
+            ok = reject_pending_tag(tag)
+        elif body.action == "merge":
+            if not body.merge_into:
+                raise HTTPException(400, "merge_into required")
+            ok = merge_pending_tag(tag, body.merge_into)
+        else:
+            raise HTTPException(400, f"Unknown action: {body.action}")
+        return {"ok": ok}
+
+    @app.post("/api/pending/approve-all")
+    def approve_all_pending():
+        pending = load_pending()
+        count = 0
+        for tag in list(pending.keys()):
+            approve_pending_tag(tag)
+            count += 1
+        return {"approved": count}
+
+    @app.post("/api/pending/reject-all")
+    def reject_all_pending():
+        pending = load_pending()
+        count = len(pending)
+        for tag in list(pending.keys()):
+            reject_pending_tag(tag)
+        return {"rejected": count}
 
     # --- Web UI ---
     @app.get("/", response_class=HTMLResponse)

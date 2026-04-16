@@ -6,7 +6,7 @@ from pathlib import Path
 DEFAULT_CONFIG = {
     "watch_dir": str(Path.home() / "files"),
     "db_path": str(Path.home() / ".filetagger" / "filetagger.db"),
-    "ollama_base_url": "http://localhost:11434",
+    "ollama_base_url": "http://ollama.akinus21.com",
     "ollama_model": "gpt-oss:20b-cloud",
     "web_host": "127.0.0.1",
     "web_port": 7432,

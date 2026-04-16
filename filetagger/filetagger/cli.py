@@ -258,3 +258,37 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+@app.command()
+def retag_all(
+    force: bool = typer.Option(False, "--force", "-f",
+                               help="Re-tag even files that haven't changed"),
+):
+    """Force re-tag all files in the watch directory."""
+    config = load_config()
+    if not Path(config["db_path"]).exists():
+        typer.echo("No database found. Run 'filetagger start' first.", err=True)
+        raise typer.Exit(1)
+
+    if not PID_FILE.exists():
+        typer.echo("Daemon is not running. Start it first with 'filetagger start'.", err=True)
+        raise typer.Exit(1)
+
+    import httpx
+    host = config.get("web_host", "127.0.0.1")
+    port = config.get("web_port", 7432)
+    try:
+        r = httpx.post(f"http://{host}:{port}/api/retag-all", timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        typer.echo(f"✓ Queued {data['queued']} files for re-tagging.")
+    except httpx.ConnectError:
+        typer.echo("Cannot reach web API — is the daemon running?", err=True)
+        # Fallback: directly clear hashes and queue via DB if force flag set
+        if force:
+            conn = init_db(config["db_path"])
+            conn.execute("UPDATE files SET file_hash=NULL, error=NULL, tagged_at=NULL")
+            conn.commit()
+            typer.echo("✓ Cleared hashes in DB. Restart daemon to re-tag everything.")
+        raise typer.Exit(1)

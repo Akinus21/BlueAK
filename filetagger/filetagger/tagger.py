@@ -6,14 +6,38 @@ from pathlib import Path
 
 logger = logging.getLogger("filetagger.tagger")
 
-SYSTEM_PROMPT = """You are a file tagging assistant. Given file content and metadata, you generate:
-1. A concise one-sentence summary (max 20 words)
-2. A list of 3-8 relevant tags (lowercase, single words or short hyphenated phrases)
 
-Tags should describe: topic, type, project, subject matter, time period, people, organizations, or any relevant context.
+def _build_system_prompt(approved_tags: list[str]) -> str:
+    if approved_tags:
+        tag_list = "\n".join(f"  - {t}" for t in approved_tags[:150])
+        tag_section = f"""
+APPROVED TAG LIBRARY (use these whenever possible):
+{tag_list}
+
+TAG SELECTION RULES — FOLLOW STRICTLY:
+1. ALWAYS prefer tags from the approved library above.
+2. Only invent a NEW tag if NO approved tag adequately describes the file.
+3. If you must invent a new tag, limit it to 1 new tag maximum per file.
+4. New tags must be BROAD and REUSABLE (e.g. "geology" not "utah-rock-formations-2019").
+5. Never create tags specific to a single file (filenames, project codes, dates).
+6. Favor FEWER, MORE GENERAL tags over MANY SPECIFIC ones. 3-5 tags is ideal.
+"""
+    else:
+        tag_section = """
+TAG SELECTION RULES:
+1. Generate 3-6 broad, reusable tags describing the file's topic and type.
+2. Tags must be general enough to apply to multiple files.
+3. Never use filenames, dates, or unique identifiers as tags.
+"""
+
+    return f"""You are a file tagging assistant. Given file content and metadata, generate:
+1. A concise one-sentence summary (max 20 words)
+2. A list of 3-6 relevant tags
+
+{tag_section}
 
 Respond ONLY with valid JSON in this exact format, no other text:
-{"summary": "...", "tags": ["tag1", "tag2", "tag3"]}"""
+{{"summary": "...", "tags": ["tag1", "tag2", "tag3"]}}"""
 
 
 def build_prompt(filename: str, category: str, extension: str,
@@ -28,23 +52,22 @@ Generate summary and tags for this file."""
 
 
 def tag_file(filename: str, category: str, extension: str,
-             content: str, size_bytes: int, config: dict) -> tuple[str, list]:
-    """Returns (summary, tags). Raises on failure."""
+             content: str, size_bytes: int, config: dict,
+             approved_tags: list[str] = None) -> tuple[str, list]:
+    """Returns (summary, raw_ai_tags). Raises on failure."""
     base_url = config["ollama_base_url"].rstrip("/")
     model = config["ollama_model"]
     prompt = build_prompt(filename, category, extension, content, size_bytes)
+    system = _build_system_prompt(approved_tags or [])
 
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": prompt}
+            {"role": "system", "content": system},
+            {"role": "user",   "content": prompt}
         ],
         "stream": False,
-        "options": {
-            "temperature": 0.2,
-            "num_predict": 256
-        }
+        "options": {"temperature": 0.2, "num_predict": 256}
     }
 
     try:
@@ -54,8 +77,6 @@ def tag_file(filename: str, category: str, extension: str,
             data = resp.json()
 
         raw = data["message"]["content"].strip()
-
-        # Strip markdown code fences if present
         if raw.startswith("```"):
             raw = raw.split("```")[1]
             if raw.startswith("json"):
@@ -65,20 +86,16 @@ def tag_file(filename: str, category: str, extension: str,
         parsed = json.loads(raw)
         summary = parsed.get("summary", "")
         tags = parsed.get("tags", [])
-
-        # Sanitize tags
         tags = [str(t).lower().strip().replace(" ", "-")[:40] for t in tags if t]
-        tags = list(dict.fromkeys(tags))[:10]  # dedupe, max 10
-
+        tags = list(dict.fromkeys(tags))[:10]
         return summary, tags
 
     except httpx.HTTPStatusError as e:
         raise RuntimeError(f"Ollama HTTP error {e.response.status_code}: {e.response.text[:200]}")
     except httpx.ConnectError:
         raise RuntimeError(f"Cannot connect to Ollama at {base_url}")
-    except json.JSONDecodeError as e:
+    except json.JSONDecodeError:
         logger.warning(f"JSON parse failed for {filename}, raw: {raw[:200]}")
-        # Return filename-based fallback
         stem = Path(filename).stem.replace("_", "-").replace(" ", "-").lower()
         return f"File: {filename}", [category, stem[:40]]
     except Exception as e:
@@ -86,7 +103,6 @@ def tag_file(filename: str, category: str, extension: str,
 
 
 def check_ollama(config: dict) -> tuple[bool, str]:
-    """Check if Ollama is reachable and model is available."""
     base_url = config["ollama_base_url"].rstrip("/")
     model = config["ollama_model"]
     try:

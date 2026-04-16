@@ -14,6 +14,7 @@ from .db import get_conn, init_db, file_hash, needs_reindex, upsert_file, remove
 from .extractor import get_category, extract_text
 from .tagger import tag_file
 from .sidecar import write_sidecar, delete_sidecar
+from .taxonomy import approved_tags, resolve_tags, init_taxonomy
 
 logger = logging.getLogger("filetagger.daemon")
 
@@ -141,14 +142,21 @@ class TagWorker(threading.Thread):
 
         try:
             content = extract_text(path, category, self.config)
-            summary, tags = tag_file(
+            # Pass approved tag library to AI so it prefers existing tags
+            current_approved = approved_tags()
+            summary, ai_tags = tag_file(
                 p.name, category, p.suffix.lower(),
-                content, size_bytes, self.config
+                content, size_bytes, self.config,
+                approved_tags=current_approved
             )
-            upsert_file(conn, path, category, summary, tags, size_bytes, fhash)
-            write_sidecar(path, tags, summary)
+            # Split into approved (apply now) and new (queue for review)
+            good_tags, new_tags = resolve_tags(ai_tags, p.name)
+            if new_tags:
+                logger.info(f"Pending approval: {p.name} → new tags [{', '.join(new_tags)}]")
+            upsert_file(conn, path, category, summary, good_tags, size_bytes, fhash)
+            write_sidecar(path, good_tags, summary)
             self.processed += 1
-            logger.info(f"Tagged: {p.name} → [{', '.join(tags)}]")
+            logger.info(f"Tagged: {p.name} → [{', '.join(good_tags)}]")
         except Exception as e:
             logger.error(f"Failed to tag {p.name}: {e}")
             upsert_file(conn, path, category, "", [], size_bytes, fhash, error=str(e))
@@ -164,6 +172,7 @@ class Daemon:
         self.db_path = self.config["db_path"]
         self._conn = init_db(self.db_path)
         self._file_queue = FileQueue()
+        init_taxonomy()  # seed default tags if first run
         self._worker = None
         self._observer = None
         self._running = False
