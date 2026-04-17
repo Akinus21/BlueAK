@@ -184,6 +184,15 @@ COPY config/environment.d/filetagger.conf \
 # Pre-create the default files folder in skel
 RUN mkdir -p /etc/skel/files
 
+# ── AkTags — AI-powered tag-based file browser ───────────────────────────────
+RUN curl -fsSL \
+    https://github.com/akinus21/aktags/releases/download/latest/aktags \
+    -o /usr/bin/aktags && \
+    chmod +x /usr/bin/aktags
+
+COPY aktags/aktags.desktop /usr/share/applications/aktags.desktop
+RUN update-desktop-database /usr/share/applications/ 2>/dev/null || true
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 11. Configs + first-login bootstrap
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -168,62 +168,12 @@ else
 fi
 
 ########################################
-# 3. TAGSTUDIO
-# Bump TAGSTUDIO_VERSION to trigger an
-# auto-update on the next login.
+# Tag-Based File Browser
 ########################################
 
-log "--- TagStudio ---"
+log "--- Tag-Based File Browser ---"
 
-TAGSTUDIO_VERSION="9.5.2"
-TAGSTUDIO_DIR="$HOME/.local/share/tagstudio"
-TAGSTUDIO_EXE="$TAGSTUDIO_DIR/tagstudio"
-TAGSTUDIO_BIN="$HOME/.local/bin/tagstudio"
-TAGSTUDIO_URL="https://github.com/TagStudioDev/TagStudio/releases/download/v${TAGSTUDIO_VERSION}/TagStudio-v${TAGSTUDIO_VERSION}-linux-x86_64.tar.gz"
-
-mkdir -p "$TAGSTUDIO_DIR"
-
-if [[ "$(get_version tagstudio)" != "$TAGSTUDIO_VERSION" ]] || [[ ! -x "$TAGSTUDIO_EXE" ]]; then
-    log "Installing TagStudio v${TAGSTUDIO_VERSION} (was: $(get_version tagstudio || echo none))..."
-    TARBALL="/tmp/tagstudio-v${TAGSTUDIO_VERSION}.tar.gz"
-
-    if curl -fsSL --retry 3 "$TAGSTUDIO_URL" -o "$TARBALL"; then
-        tar -xzf "$TARBALL" -C /tmp/ \
-            --strip-components=1 \
-            --wildcards "*/tagstudio" \
-        && mv /tmp/tagstudio "$TAGSTUDIO_EXE" \
-        && chmod +x "$TAGSTUDIO_EXE" \
-        && rm -f "$TARBALL" \
-        || { warn "TagStudio extraction failed"; rm -f "$TARBALL"; }
-
-        # Wrapper so 'tagstudio' works from anywhere in PATH
-        printf '#!/usr/bin/env bash\nexec "%s" "$@"\n' "$TAGSTUDIO_EXE" \
-            > "$TAGSTUDIO_BIN" && chmod +x "$TAGSTUDIO_BIN"
-
-        # Desktop entry
-        cat > "$HOME/.local/share/applications/tagstudio.desktop" <<DESKTOP
-[Desktop Entry]
-Name=TagStudio
-Comment=Tag-based photo and file management
-Exec=$TAGSTUDIO_EXE %F
-Icon=tagstudio
-Terminal=false
-Type=Application
-Categories=Utility;FileManager;Graphics;Photography;
-MimeType=inode/directory;
-StartupWMClass=tagstudio
-Keywords=tags;files;photos;organize;
-DESKTOP
-        update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
-        xdg-mime default tagstudio.desktop inode/directory 2>/dev/null || true
-        set_version tagstudio "$TAGSTUDIO_VERSION"
-        ok "TagStudio v${TAGSTUDIO_VERSION} installed"
-    else
-        warn "TagStudio download failed — check connectivity"
-    fi
-else
-    ok "TagStudio v${TAGSTUDIO_VERSION} (up to date)"
-fi
+xdg-mime default aktags.desktop inode/directory
 
 ########################################
 # 4. SYSTEMD USER UNITS
