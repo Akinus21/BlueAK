@@ -181,35 +181,19 @@ xdg-mime default aktags.desktop inode/directory
 
 log "--- Nyxt Browser ---"
 
-NYXT_VERSION=$(get_version "nyxt")
-NYXT_TAG="3.1.0"  # Update to trigger re-install
-NYXT_INSTALLED=""
-
-# Download Nyxt release binary
-if [[ -d "/usr/local/lib/nyxt" ]] || command -v nyxt &>/dev/null; then
-    NYXT_INSTALLED=$(nyxt --version 2>/dev/null | awk '{print $2}' || echo "unknown")
-fi
-
-if [[ "$NYXT_INSTALLED" != "$NYXT_TAG" ]]; then
-    log "Installing Nyxt $NYXT_TAG..."
-    TMPDIR=$(mktemp -d)
-    curl -fsSL "https://github.com/nyxt/nyxt/releases/download/v${NYXT_TAG}/nyxt-${NYXT_TAG}-manual.tar.gz" \
-        -o "$TMPDIR/nyxt.tar.gz"
-    tar -xzf "$TMPDIR/nyxt.tar.gz" -C "$TMPDIR"
-    sudo rm -rf /usr/local/lib/nyxt /usr/local/bin/nyxt
-    sudo mv "$TMPDIR/nyxt-${NYXT_TAG}" /usr/local/lib/nyxt
-    sudo ln -sf /usr/local/lib/nyxt/nyxt /usr/local/bin/nyxt
-    rm -rf "$TMPDIR"
-    ok "Nyxt installed"
+if ! flatpak list --user --app 2>/dev/null | grep -q "org.nyxt.Nyxt"; then
+    log "Installing Nyxt via Flatpak..."
+    flatpak install --user -y flathub org.nyxt.Nyxt 2>/dev/null \
+        && ok "Nyxt installed" \
+        || warn "Nyxt install failed (non-fatal)"
 else
-    ok "Nyxt $NYXT_INSTALLED (up to date)"
+    ok "Nyxt (Flatpak) present"
 fi
 
-set_version "nyxt" "$NYXT_TAG"
-
-# Eldritch theme config
-mkdir -p "$HOME/.config/nyxt"
-cat > "$HOME/.config/nyxt/config.lisp" << 'EOF'
+# Eldritch theme config (flatpak: ~/.var/app/<id>/config/)
+NYXT_CONFIG_DIR="$HOME/.var/app/org.nyxt.Nyxt/config"
+mkdir -p "$NYXT_CONFIG_DIR"
+cat > "$NYXT_CONFIG_DIR/config.lisp" << 'EOF'
 ;; ~/.config/nyxt/config.lisp
 ;; Eldritch theme for Nyxt
 ;; Palette source: github.com/eldritch-theme/eldritch
