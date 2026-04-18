@@ -53,3 +53,28 @@ just clean              # Remove build artifacts
 - No tests in traditional sense - verify by building images
 - This is a template; `image_name` in Justfile should be customized on fork
 
+## Eldritch Theme (BlueAK Color Palette)
+
+The "Eldritch" theme defines BlueAK's unified color system across multiple applications.
+
+| Role        | Hex       | Name                      |
+|-------------|-----------|---------------------------|
+| Background  | `#212337` | Sunken Depths Grey        |
+| Foreground  | `#ebfafa` | Lighthouse White          |
+| Surface     | `#323449` | Shallow Depths Grey       |
+| Accent      | `#04d1f9` | Watery Tomb Blue (cyan)   |
+| Secondary   | `#7081d0` | The Old One Purple        |
+| Success     | `#37f499` | Eldritch Green            |
+| Warning     | `#e9f941` | Eldritch Yellow           |
+| Highlight   | `#f265b5` | Eldritch Magenta/Pink     |
+| Code        | `#9071f4` | Eldritch Purple/Blue      |
+
+**Applications that use this palette:**
+- **Nyxt** → `~/.var/app/org.nyxt.Nyxt/config/config.lisp` (Lisp theme config)
+- **GTK3** → `~/.config/gtk-3.0/settings.ini`
+- **GTK4** → `~/.config/gtk-4.0/settings.ini`
+- **Terminal colors** → `config/zsh/` (P10k, zshrc)
+- **GTK apps** → via Adwaita-dark + `gtk-color-scheme` overrides
+
+**Source:** [eldritch-theme/eldritch](https://github.com/eldritch-theme/eldritch)
+
