@@ -203,6 +203,20 @@ COPY config/noctalia/ /etc/skel/.config/noctalia/
 COPY config/profile.d/blueak-init.sh /etc/profile.d/blueak-init.sh
 RUN chmod +x /etc/profile.d/blueak-init.sh
 
+# ── Eldritch Theme — GTK ────────────────────────────────────────────────────
+RUN mkdir -p /etc/skel/.config/gtk-3.0 /etc/skel/.config/gtk-4.0
+COPY config/gtk-3.0/settings.ini /etc/skel/.config/gtk-3.0/settings.ini
+COPY config/gtk-4.0/settings.ini /etc/skel/.config/gtk-4.0/settings.ini
+
+# ── Eldritch Theme — Nyxt ───────────────────────────────────────────────────
+RUN mkdir -p /etc/skel/.var/app/org.nyxt.Nyxt/config
+COPY config/nyxt/config.lisp /etc/skel/.var/app/org.nyxt.Nyxt/config/config.lisp
+
+# ── Flatpak ────────────────────────────────────────────────────────────────
+RUN flatpak remote-add --user --if-not-exists flathub \
+    https://dl.flathub.org/repo/flathub.flatpakrepo || true
+RUN flatpak install --user -y flathub org.nyxt.Nyxt || true
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 12. Cleanup
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

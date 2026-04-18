@@ -176,68 +176,6 @@ log "--- Tag-Based File Browser ---"
 xdg-mime default aktags.desktop inode/directory
 
 ########################################
-# NYXT BROWSER
-########################################
-
-log "--- Nyxt Browser ---"
-
-if ! flatpak list --user --app 2>/dev/null | grep -q "org.nyxt.Nyxt"; then
-    log "Installing Nyxt via Flatpak..."
-    flatpak install --user -y flathub org.nyxt.Nyxt 2>/dev/null \
-        && ok "Nyxt installed" \
-        || warn "Nyxt install failed (non-fatal)"
-else
-    ok "Nyxt (Flatpak) present"
-fi
-
-# Eldritch theme config (flatpak: ~/.var/app/<id>/config/)
-NYXT_CONFIG_DIR="$HOME/.var/app/org.nyxt.Nyxt/config"
-mkdir -p "$NYXT_CONFIG_DIR"
-cat > "$NYXT_CONFIG_DIR/config.lisp" << 'EOF'
-;; ~/.config/nyxt/config.lisp
-;; Eldritch theme for Nyxt
-;; Palette source: github.com/eldritch-theme/eldritch
-
-(define-configuration browser
-  ((theme (make-instance 'theme:theme
-    :dark-p t
-    :background-color    "#212337"  ;; Sunken Depths Grey (bg)
-    :on-background-color "#ebfafa"  ;; Lighthouse White (fg)
-    :primary-color       "#323449"  ;; Shallow Depths Grey (current line / surface)
-    :on-primary-color    "#ebfafa"  ;; Lighthouse White
-    :secondary-color     "#7081d0"  ;; The Old One Purple (comments / muted)
-    :on-secondary-color  "#ebfafa"
-    :accent-color        "#04d1f9"  ;; Watery Tomb Blue (cyan / primary accent)
-    :on-accent-color     "#212337"
-    ;; Additional semantic slots (Nyxt 3.x)
-    :success-color       "#37f499"  ;; Eldritch Green
-    :warning-color       "#e9f941"  ;; Eldritch Yellow
-    :highlight-color     "#f265b5"  ;; Eldritch Magenta/Pink
-    :codeblock-color     "#9071f4"  ;; Eldritch Purple/Blue
-    :text-color          "#ebfafa"
-    :contrast-text-color "#212337"))))
-EOF
-ok "Nyxt Eldritch theme configured"
-
-# Theme GTK to match Eldritch palette
-mkdir -p "$HOME/.config/gtk-3.0"
-cat > "$HOME/.config/gtk-3.0/settings.ini" << 'EOF'
-[Settings]
-gtk-application-prefer-dark-theme=1
-gtk-theme-name=Adwaita-dark
-gtk-color-scheme=bg:#212337,fg:#ebfafa,selected_bg_color:#323449,selected_fg_color:#ebfafa,accent_color:#04d1f9
-EOF
-
-mkdir -p "$HOME/.config/gtk-4.0"
-cat > "$HOME/.config/gtk-4.0/settings.ini" << 'EOF'
-[Settings]
-gtk-application-prefer-dark-theme=1
-gtk-theme-name=Adwaita-dark
-gtk-color-scheme=bg:#212337,fg:#ebfafa,selected_bg_color:#323449,selected_fg_color:#ebfafa,accent_color:#04d1f9
-EOF
-ok "GTK theme configured for Eldritch palette"
-
-########################################
 # SYSTEMD USER UNITS
 ########################################
 
