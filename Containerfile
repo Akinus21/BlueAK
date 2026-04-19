@@ -143,8 +143,16 @@ RUN systemctl enable bootc-nightly-reboot.timer
 
 RUN mkdir -p /etc/skel/files
 
-# Install Rust toolchain + build deps (shared by both projects)
-RUN dnf install -y rust cargo gcc gtk4-devel libadwaita-devel
+# Install Rust toolchain + all build deps (shared by Aktags and Noctalia-gtk)
+# iced (Aktags GUI) needs wayland/X11/EGL/font devel headers
+RUN dnf install -y \
+    rust cargo gcc \
+    gtk4-devel libadwaita-devel \
+    wayland-devel libxkbcommon-devel \
+    mesa-libEGL-devel \
+    libX11-devel libXcursor-devel libXi-devel libXrandr-devel \
+    fontconfig-devel freetype-devel \
+    openssl-devel
 
 # ── AkTags — tag-based AI file browser (source build, no releases) ───────────
 RUN curl -fsSL https://github.com/Akinus21/Aktags/archive/refs/heads/main.tar.gz \
@@ -153,12 +161,8 @@ RUN curl -fsSL https://github.com/Akinus21/Aktags/archive/refs/heads/main.tar.gz
     cd /tmp/Aktags-main && \
     cargo build --release && \
     install -m755 target/release/aktags /usr/bin/aktags && \
-    if [[ -f aktags.desktop ]]; then \
-        install -m644 aktags.desktop /usr/share/applications/aktags.desktop; \
-    else \
-        printf '[Desktop Entry]\nName=AkTags\nComment=Tag-based AI file browser\nExec=aktags\nIcon=folder\nType=Application\nCategories=Utility;FileManager;\nMimeType=inode/directory;\n' \
-        > /usr/share/applications/aktags.desktop; \
-    fi && \
+    printf '[Desktop Entry]\nName=AkTags\nComment=Tag-based AI file browser\nExec=aktags\nIcon=folder\nType=Application\nCategories=Utility;FileManager;\nMimeType=inode/directory;\n' \
+        > /usr/share/applications/aktags.desktop && \
     update-desktop-database /usr/share/applications/ 2>/dev/null || true && \
     rm -rf /tmp/Aktags-main /tmp/aktags.tar.gz
 
@@ -172,7 +176,15 @@ RUN curl -fsSL https://github.com/Akinus21/Noctalia-gtk/archive/refs/heads/main.
     rm -rf /tmp/Noctalia-gtk-main /tmp/noctalia-gtk.tar.gz
 
 # Remove build toolchain — keeps final image lean
-RUN dnf remove -y rust cargo gcc gtk4-devel libadwaita-devel && dnf clean all
+RUN dnf remove -y \
+    rust cargo gcc \
+    gtk4-devel libadwaita-devel \
+    wayland-devel libxkbcommon-devel \
+    mesa-libEGL-devel \
+    libX11-devel libXcursor-devel libXi-devel libXrandr-devel \
+    fontconfig-devel freetype-devel \
+    openssl-devel && \
+    dnf clean all
 
 # ── Systemd user services (seeded into /etc/skel so every new user gets them) ─
 RUN mkdir -p /etc/skel/.config/systemd/user

@@ -177,19 +177,72 @@ jobs:
 
       - name: Notify webhook on failure
         if: failure() && github.ref == 'refs/heads/main'
+        env:
+          WEBHOOK_SECRET: ${{ secrets.WEBHOOK_HMAC_SECRET }}
         run: |
-          ERRORS=$(cat build.log 2>/dev/null | tail -150 || echo "Build failed")
-          PAYLOAD=$(jq -n \
-            --arg errors "$ERRORS" \
-            --arg run_url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            --arg sha "${{ github.sha }}" \
-            '{errors: $errors, run_url: $run_url, sha: $sha}')
-          SIG=$(echo -n "$PAYLOAD" | \
-            openssl dgst -sha256 -hmac "4d82982b0a0010a706a40cf272f49c9ddfee93162a2c4b714eebc6ded10038f5" | \
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          SHA="${{ github.sha }}"
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s" "$SHA" 2>/dev/null || echo "unknown")
+
+          PAYLOAD=$(jq -cn \
+            --arg run_url "$RUN_URL" \
+            --arg sha "$SHA" \
+            --arg commit_msg "$COMMIT_MSG" \
+            --arg ref "${{ github.ref_name }}" \
+            --arg actor "${{ github.actor }}" \
+            '{
+              event: "build_failure",
+              run_url: $run_url,
+              sha: $sha,
+              commit_msg: $commit_msg,
+              ref: $ref,
+              actor: $actor
+            }')
+
+          SIG=$(printf '%s' "$PAYLOAD" | \
+            openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | \
             awk '{print "sha256="$2}')
+
           curl -fsSL -X POST \
             -H "Content-Type: application/json" \
             -H "X-GitHub-Event: build_failure" \
+            -H "X-Hub-Signature-256: $SIG" \
+            -d "$PAYLOAD" \
+            "https://webhook.akinus21.com/webhook/blueak-build" || true
+
+      - name: Notify webhook on success
+        if: success() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          WEBHOOK_SECRET: ${{ secrets.WEBHOOK_HMAC_SECRET }}
+        run: |
+          RUN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          SHA="${{ github.sha }}"
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s" "$SHA" 2>/dev/null || echo "unknown")
+
+          PAYLOAD=$(jq -cn \
+            --arg run_url "$RUN_URL" \
+            --arg sha "$SHA" \
+            --arg commit_msg "$COMMIT_MSG" \
+            --arg ref "${{ github.ref_name }}" \
+            --arg actor "${{ github.actor }}" \
+            --arg image "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}" \
+            '{
+              event: "build_success",
+              run_url: $run_url,
+              sha: $sha,
+              commit_msg: $commit_msg,
+              ref: $ref,
+              actor: $actor,
+              image: $image
+            }')
+
+          SIG=$(printf '%s' "$PAYLOAD" | \
+            openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | \
+            awk '{print "sha256="$2}')
+
+          curl -fsSL -X POST \
+            -H "Content-Type: application/json" \
+            -H "X-GitHub-Event: build_success" \
             -H "X-Hub-Signature-256: $SIG" \
             -d "$PAYLOAD" \
             "https://webhook.akinus21.com/webhook/blueak-build" || true
