@@ -164,22 +164,13 @@ RUN curl -fsSL \
     > /usr/share/applications/aktags.desktop && \
     update-desktop-database /usr/share/applications/ 2>/dev/null || true
 
-# ── Noctalia-gtk — GTK theme color sync daemon (source build) ────────────────
-# Try download first, fall back to source build
+# ── Noctalia-gtk — GTK theme color sync daemon ───────────────────────────────
+# Download pre-built binary if available; if not available yet, skip
 RUN curl -fsSL \
     https://github.com/Akinus21/Noctalia-gtk/releases/download/latest/noctalia-gtk \
-    -o /usr/local/bin/noctalia-gtk 2>/dev/null && \
+    -o /usr/local/bin/noctalia-gtk && \
     chmod +x /usr/local/bin/noctalia-gtk \
-    || { \
-        rm -rf /root/.cargo && \
-        curl -fsSL https://github.com/Akinus21/Noctalia-gtk/archive/refs/heads/main.tar.gz \
-        -o /tmp/noctalia-gtk.tar.gz && \
-        tar xzf /tmp/noctalia-gtk.tar.gz -C /tmp && \
-        cd /tmp/Noctalia-gtk-main && \
-        cargo build --release && \
-        install -m755 target/release/noctalia-gtk /usr/local/bin/noctalia-gtk && \
-        rm -rf /tmp/Noctalia-gtk-main /tmp/noctalia-gtk.tar.gz; \
-    }
+    || echo "Noctalia-gtk release not found — will be installed via blueak-init.sh"
 
 # Remove build toolchain — keeps final image lean
 RUN dnf remove -y \
