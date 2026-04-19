@@ -16,7 +16,8 @@ RUN dnf install -y \
     ulauncher \
     alacritty \
     swaybg \
-    matugen
+    matugen \
+    earlyoom
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 3. CAC smart card support
@@ -194,6 +195,30 @@ COPY config/systemd/noctalia-gtk.service     /etc/skel/.config/systemd/user/noct
 # ── Noctalia color config seed ────────────────────────────────────────────────
 RUN mkdir -p /etc/skel/.config/noctalia
 COPY config/noctalia/ /etc/skel/.config/noctalia/
+
+# ── nirinit — session restore for niri ───────────────────────────────────────
+# Download pre-built binary
+RUN curl -fsSL \
+    https://github.com/amaanq/nirinit/releases/download/v0.2.2/nirinit-x86_64-linux.tar.gz \
+    -o /tmp/nirinit.tar.gz && \
+    tar xzf /tmp/nirinit.tar.gz -C /tmp && \
+    mv /tmp/nirinit-x86_64-linux/nirinit /usr/local/bin/ && \
+    chmod +x /usr/local/bin/nirinit && \
+    rm -rf /tmp/nirinit*
+
+# ── niri-session-manager — alternative session restore ──────────────────────
+# Build from source
+RUN dnf install -y gcc rust cargo && \
+    curl -fsSL https://github.com/MTeaHead/niri-session-manager/archive/refs/heads/main.tar.gz \
+    -o /tmp/niri-session-manager.tar.gz && \
+    tar xzf /tmp/niri-session-manager.tar.gz -C /tmp && \
+    cd /tmp/niri-session-manager-main && \
+    cargo build --release && \
+    mv target/release/niri-session-manager /usr/local/bin/ && \
+    chmod +x /usr/local/bin/niri-session-manager && \
+    rm -rf /tmp/niri-session-manager* && \
+    dnf remove -y gcc rust cargo && \
+    dnf clean all
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 11. Configs + first-login bootstrap

@@ -6,6 +6,7 @@ Universal Blue bootc image template. This repo builds OCI images and bootable di
 
 - **Always push your changes when you have completed and tested them** before ending the session
 - Use the SSH key: `GIT_SSH_COMMAND="ssh -i /config/.ssh/github -o StrictHostKeyChecking=no" git push`
+- GitHub CLI: `/usr/bin/gh` (use `gh auth login` first on a new machine)
 
 ## Key Files
 
