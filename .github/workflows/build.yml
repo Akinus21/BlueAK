@@ -178,6 +178,10 @@ jobs:
       - name: Notify webhook on failure
         if: failure() && github.ref == 'refs/heads/main'
         run: |
+          if [[ -z "${{ secrets.WEBHOOK_URL }}" ]]; then
+            echo "WEBHOOK_URL not set, skipping notification"
+            exit 0
+          fi
           ERRORS=$(cat build.log 2>/dev/null | tail -150 || echo "Build failed")
           PAYLOAD=$(jq -n \
             --arg errors "$ERRORS" \
