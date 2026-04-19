@@ -198,7 +198,8 @@ RUN curl -fsSL \
     https://github.com/amaanq/nirinit/releases/download/v0.2.2/nirinit-x86_64-linux.tar.gz \
     -o /tmp/nirinit.tar.gz && \
     tar xzf /tmp/nirinit.tar.gz -C /tmp && \
-    mv /tmp/nirinit-x86_64-linux/nirinit /usr/local/bin/ && \
+    mv /tmp/nirinit-x86_64-linux/nirinit /usr/local/bin/nirinit 2>/dev/null \
+    || mv /tmp/nirinit /usr/local/bin/nirinit && \
     chmod +x /usr/local/bin/nirinit && \
     rm -rf /tmp/nirinit*
 
