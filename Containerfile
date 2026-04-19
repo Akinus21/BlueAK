@@ -138,50 +138,9 @@ COPY config/systemd/bootc-nightly-reboot.timer   /etc/systemd/system/bootc-night
 RUN systemctl enable bootc-nightly-reboot.timer
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 10. FileTagger — bake Python source into image, build venv at image build time
+# 10. Pre-create the default files folder in skel
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# Copy the full filetagger package into a stable system path
-COPY filetagger/ /usr/share/filetagger/src/
-
-# Build a system-level venv so every user shares the same installed package.
-# The venv lives on the immutable base — no per-user pip installs needed.
-RUN python3 -m venv /usr/share/filetagger/venv && \
-    /usr/share/filetagger/venv/bin/pip install -q --upgrade pip && \
-    /usr/share/filetagger/venv/bin/pip install -q \
-        httpx \
-        watchdog \
-        typer \
-        uvicorn \
-        fastapi \
-        "pdfminer.six" \
-        python-docx \
-        openpyxl \
-        python-pptx \
-        pytesseract \
-        Pillow && \
-    /usr/share/filetagger/venv/bin/pip install -q /usr/share/filetagger/src
-
-# Global wrapper so 'filetagger' works for any user without PATH gymnastics
-RUN printf '#!/usr/bin/env bash\nexec /usr/share/filetagger/venv/bin/filetagger "$@"\n' \
-    > /usr/bin/filetagger && \
-    chmod +x /usr/bin/filetagger
-
-# Increase inotify limits for filetagger watchdog
-RUN echo 'fs.inotify.max_user_watches=524288' > /etc/sysctl.d/99-filetagger.conf && \
-    echo 'fs.inotify.max_user_instances=512' >> /etc/sysctl.d/99-filetagger.conf
-
-# Seed systemd user service into /etc/skel so every new user gets it
-RUN mkdir -p /etc/skel/.config/systemd/user
-COPY config/systemd/filetagger.service \
-     /etc/skel/.config/systemd/user/filetagger.service
-
-# Seed environment.d so FILETAGGER_OLLAMA_URL is set for all user services
-RUN mkdir -p /etc/skel/.config/environment.d
-COPY config/environment.d/filetagger.conf \
-     /etc/skel/.config/environment.d/filetagger.conf
-
-# Pre-create the default files folder in skel
 RUN mkdir -p /etc/skel/files
 
 # ── AkTags — AI-powered tag-based file browser ───────────────────────────────

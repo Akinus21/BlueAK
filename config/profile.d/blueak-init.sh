@@ -176,48 +176,7 @@ log "--- Tag-Based File Browser ---"
 xdg-mime default aktags.desktop inode/directory
 
 ########################################
-# SYSTEMD USER UNITS
-########################################
-
-log "--- Systemd user units ---"
-mkdir -p ~/.config/systemd/user ~/.config/environment.d
-
-# filetagger — AI file tagging daemon
-skel_copy ".config/systemd/user/filetagger.service"
-skel_copy ".config/environment.d/filetagger.conf"
-
-systemctl --user daemon-reload 2>/dev/null || true
-
-if ! systemctl --user is-enabled filetagger &>/dev/null 2>&1; then
-    filetagger init 2>/dev/null || true
-    systemctl --user enable --now filetagger 2>/dev/null \
-        && ok "filetagger enabled and started" \
-        || warn "filetagger failed — check: journalctl --user -u filetagger"
-elif ! systemctl --user is-active --quiet filetagger 2>/dev/null; then
-    systemctl --user start filetagger 2>/dev/null \
-        && ok "filetagger started" \
-        || warn "filetagger failed to start"
-else
-    ok "filetagger running"
-fi
-
-# cac-init — CAC smart card login-time setup
-skel_copy ".config/systemd/user/cac-init.service"
-skel_copy ".local/bin/cac-init.sh"
-[[ -f "$HOME/.local/bin/cac-init.sh" ]] && chmod +x "$HOME/.local/bin/cac-init.sh"
-
-systemctl --user daemon-reload 2>/dev/null || true
-
-if ! systemctl --user is-enabled cac-init &>/dev/null 2>&1; then
-    systemctl --user enable --now cac-init 2>/dev/null \
-        && ok "cac-init enabled" \
-        || warn "cac-init failed to enable — run: cac-setup.sh --doctor"
-else
-    ok "cac-init enabled"
-fi
-
-########################################
-# 5. CAC SETUP
+# CAC SETUP
 ########################################
 
 log "--- CAC setup ---"
