@@ -197,10 +197,13 @@ COPY config/noctalia/ /etc/skel/.config/noctalia/
 RUN curl -fsSL \
     https://github.com/amaanq/nirinit/releases/download/v0.2.2/nirinit-x86_64-linux.tar.gz \
     -o /tmp/nirinit.tar.gz && \
-    tar xzf /tmp/nirinit.tar.gz -C /tmp && \
-    mv /tmp/nirinit-x86_64-linux/nirinit /usr/local/bin/nirinit 2>/dev/null \
-    || mv /tmp/nirinit /usr/local/bin/nirinit && \
-    chmod +x /usr/local/bin/nirinit && \
+    mkdir -p /tmp/nirinit-extract && \
+    tar xzf /tmp/nirinit.tar.gz -C /tmp/nirinit-extract && \
+    NIRINIT_PATH=$(find /tmp/nirinit-extract -type f -name nirinit 2>/dev/null | head -1) && \
+    if [[ -n "$NIRINIT_PATH" ]]; then \
+        mv "$NIRINIT_PATH" /usr/local/bin/nirinit && \
+        chmod +x /usr/local/bin/nirinit; \
+    fi && \
     rm -rf /tmp/nirinit*
 
 # ── niri-session-manager — alternative session restore ──────────────────────
