@@ -155,28 +155,31 @@ RUN dnf install -y \
     fontconfig-devel freetype-devel \
     openssl-devel
 
-# ── AkTags — tag-based AI file browser (source build, no releases) ───────────
-RUN rm -rf /root/.cargo && \
-    curl -fsSL https://github.com/Akinus21/Aktags/archive/refs/heads/main.tar.gz \
-        -o /tmp/aktags.tar.gz && \
-    tar xzf /tmp/aktags.tar.gz -C /tmp && \
-    cd /tmp/Aktags-main && \
-    cargo build --release && \
-    install -m755 target/release/aktags /usr/bin/aktags && \
+# ── AkTags — tag-based AI file browser (pre-built binary) ────────────────────
+RUN curl -fsSL \
+    https://github.com/Akinus21/Aktags/releases/download/v0.1.0-20260419060705-5e028144/aktags \
+    -o /usr/bin/aktags && \
+    chmod +x /usr/bin/aktags && \
     printf '[Desktop Entry]\nName=AkTags\nComment=Tag-based AI file browser\nExec=aktags\nIcon=folder\nType=Application\nCategories=Utility;FileManager;\nMimeType=inode/directory;\n' \
-        > /usr/share/applications/aktags.desktop && \
-    update-desktop-database /usr/share/applications/ 2>/dev/null || true && \
-    rm -rf /tmp/Aktags-main /tmp/aktags.tar.gz
+    > /usr/share/applications/aktags.desktop && \
+    update-desktop-database /usr/share/applications/ 2>/dev/null || true
 
 # ── Noctalia-gtk — GTK theme color sync daemon (source build) ────────────────
-RUN rm -rf /root/.cargo && \
-    curl -fsSL https://github.com/Akinus21/Noctalia-gtk/archive/refs/heads/main.tar.gz \
+# Try download first, fall back to source build
+RUN curl -fsSL \
+    https://github.com/Akinus21/Noctalia-gtk/releases/download/latest/noctalia-gtk \
+    -o /usr/local/bin/noctalia-gtk 2>/dev/null && \
+    chmod +x /usr/local/bin/noctalia-gtk \
+    || { \
+        rm -rf /root/.cargo && \
+        curl -fsSL https://github.com/Akinus21/Noctalia-gtk/archive/refs/heads/main.tar.gz \
         -o /tmp/noctalia-gtk.tar.gz && \
-    tar xzf /tmp/noctalia-gtk.tar.gz -C /tmp && \
-    cd /tmp/Noctalia-gtk-main && \
-    cargo build --release && \
-    install -m755 target/release/noctalia-gtk /usr/local/bin/noctalia-gtk && \
-    rm -rf /tmp/Noctalia-gtk-main /tmp/noctalia-gtk.tar.gz
+        tar xzf /tmp/noctalia-gtk.tar.gz -C /tmp && \
+        cd /tmp/Noctalia-gtk-main && \
+        cargo build --release && \
+        install -m755 target/release/noctalia-gtk /usr/local/bin/noctalia-gtk && \
+        rm -rf /tmp/Noctalia-gtk-main /tmp/noctalia-gtk.tar.gz; \
+    }
 
 # Remove build toolchain — keeps final image lean
 RUN dnf remove -y \
