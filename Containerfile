@@ -156,7 +156,8 @@ RUN dnf install -y \
     openssl-devel
 
 # ── AkTags — tag-based AI file browser (source build, no releases) ───────────
-RUN curl -fsSL https://github.com/Akinus21/Aktags/archive/refs/heads/main.tar.gz \
+RUN rm -rf /root/.cargo && \
+    curl -fsSL https://github.com/Akinus21/Aktags/archive/refs/heads/main.tar.gz \
         -o /tmp/aktags.tar.gz && \
     tar xzf /tmp/aktags.tar.gz -C /tmp && \
     cd /tmp/Aktags-main && \
@@ -168,7 +169,8 @@ RUN curl -fsSL https://github.com/Akinus21/Aktags/archive/refs/heads/main.tar.gz
     rm -rf /tmp/Aktags-main /tmp/aktags.tar.gz
 
 # ── Noctalia-gtk — GTK theme color sync daemon (source build) ────────────────
-RUN curl -fsSL https://github.com/Akinus21/Noctalia-gtk/archive/refs/heads/main.tar.gz \
+RUN rm -rf /root/.cargo && \
+    curl -fsSL https://github.com/Akinus21/Noctalia-gtk/archive/refs/heads/main.tar.gz \
         -o /tmp/noctalia-gtk.tar.gz && \
     tar xzf /tmp/noctalia-gtk.tar.gz -C /tmp && \
     cd /tmp/Noctalia-gtk-main && \
@@ -208,7 +210,8 @@ RUN curl -fsSL \
 
 # ── niri-session-manager — alternative session restore ──────────────────────
 # Build from source
-RUN dnf install -y gcc rust cargo && \
+RUN rm -rf /root/.cargo && \
+    dnf install -y gcc rust cargo && \
     curl -fsSL https://github.com/MTeaHead/niri-session-manager/archive/refs/heads/main.tar.gz \
     -o /tmp/niri-session-manager.tar.gz && \
     tar xzf /tmp/niri-session-manager.tar.gz -C /tmp && \
