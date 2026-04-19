@@ -1,0 +1,13 @@
+[Unit]
+Description=Noctalia GTK theme sync daemon
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/noctalia-gtk
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=graphical-session.target

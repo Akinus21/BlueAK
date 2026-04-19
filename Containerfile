@@ -144,15 +144,42 @@ RUN systemctl enable bootc-nightly-reboot.timer
 RUN mkdir -p /etc/skel/files
 
 # ── AkTags — AI-powered tag-based file browser ───────────────────────────────
+# Download binary
 RUN curl -fsSL \
     https://github.com/akinus21/aktags/releases/download/latest/aktags \
     -o /usr/bin/aktags && \
-    chmod +x /usr/bin/aktags && \
-    curl -fsSL \
-    https://raw.githubusercontent.com/akinus21/aktags/main/aktags.desktop \
-    -o /usr/share/applications/aktags.desktop
+    chmod +x /usr/bin/aktags
 
-RUN update-desktop-database /usr/share/applications/ 2>/dev/null || true
+# Download .desktop file
+RUN curl -fsSL \
+    https://raw.githubusercontent.com/akinus21/aktags/main/aktags.desktop \
+    -o /usr/share/applications/aktags.desktop && \
+    update-desktop-database /usr/share/applications/ 2>/dev/null || true
+
+# Install systemd user service for daemon mode (runs on login, no GUI)
+RUN mkdir -p /etc/skel/.config/systemd/user
+COPY config/systemd/aktags-daemon.service /etc/skel/.config/systemd/user/aktags-daemon.service
+
+# Seed Noctalia config (color source for noctalia-gtk)
+RUN mkdir -p /etc/skel/.config/noctalia
+COPY config/noctalia/ /etc/skel/.config/noctalia/
+
+# ── Noctalia-gtk — GTK theme sync daemon ─────────────────────────────────────
+# Build from source (no releases yet)
+RUN dnf install -y gcc rust cargo && \
+    curl -fsSL https://github.com/akinus21/Noctalia-gtk/archive/refs/heads/main.tar.gz \
+    -o /tmp/noctalia-gtk.tar.gz && \
+    tar xzf /tmp/noctalia-gtk.tar.gz -C /tmp && \
+    cd /tmp/Noctalia-gtk-main && \
+    cargo build --release && \
+    mv target/release/noctalia-gtk /usr/local/bin/ && \
+    chmod +x /usr/local/bin/noctalia-gtk && \
+    rm -rf /tmp/Noctalia-gtk /tmp/noctalia-gtk.tar.gz && \
+    dnf remove -y gcc rust cargo && \
+    dnf clean all
+
+# Install noctalia-gtk systemd user service
+COPY config/systemd/noctalia-gtk.service /etc/skel/.config/systemd/user/noctalia-gtk.service
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 11. Configs + first-login bootstrap

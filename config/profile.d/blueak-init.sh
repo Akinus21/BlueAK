@@ -171,9 +171,37 @@ fi
 # TAG-BASED FILE BROWSER
 ########################################
 
-log "--- Tag-Based File Browser ---"
+log "--- AkTags Daemon ---"
+mkdir -p ~/.config/systemd/user ~/.local/bin
+# Symlink aktags to user-local bin (service uses %h/.local/bin)
+ln -sf /usr/bin/aktags ~/.local/bin/aktags 2>/dev/null || true
+skel_copy ".config/systemd/user/aktags-daemon.service"
+systemctl --user daemon-reload 2>/dev/null || true
+if ! systemctl --user is-enabled aktags-daemon &>/dev/null 2>&1; then
+    systemctl --user enable --now aktags-daemon 2>/dev/null \
+        && ok "AkTags daemon enabled" \
+        || warn "AkTags daemon failed"
+else
+    ok "AkTags daemon enabled"
+fi
 
 xdg-mime default aktags.desktop inode/directory
+
+########################################
+# NOCTALIA-GTK (GTK theme sync)
+########################################
+
+log "--- Noctalia GTK Theme Sync ---"
+ln -sf /usr/local/bin/noctalia-gtk ~/.local/bin/noctalia-gtk 2>/dev/null || true
+skel_copy ".config/systemd/user/noctalia-gtk.service"
+systemctl --user daemon-reload 2>/dev/null || true
+if ! systemctl --user is-enabled noctalia-gtk &>/dev/null 2>&1; then
+    systemctl --user enable --now noctalia-gtk 2>/dev/null \
+        && ok "Noctalia GTK daemon enabled" \
+        || warn "Noctalia GTK daemon failed"
+else
+    ok "Noctalia GTK daemon enabled"
+fi
 
 ########################################
 # CAC SETUP
