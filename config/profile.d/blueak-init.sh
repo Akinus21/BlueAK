@@ -172,9 +172,7 @@ fi
 ########################################
 
 log "--- AkTags Daemon ---"
-mkdir -p ~/.config/systemd/user ~/.local/bin
-# Symlink aktags to user-local bin (service uses %h/.local/bin)
-ln -sf /usr/bin/aktags ~/.local/bin/aktags 2>/dev/null || true
+mkdir -p ~/.config/systemd/user
 skel_copy ".config/systemd/user/aktags-daemon.service"
 systemctl --user daemon-reload 2>/dev/null || true
 if ! systemctl --user is-enabled aktags-daemon &>/dev/null 2>&1; then
@@ -192,7 +190,6 @@ xdg-mime default aktags.desktop inode/directory
 ########################################
 
 log "--- Noctalia GTK Theme Sync ---"
-ln -sf /usr/local/bin/noctalia-gtk ~/.local/bin/noctalia-gtk 2>/dev/null || true
 skel_copy ".config/systemd/user/noctalia-gtk.service"
 systemctl --user daemon-reload 2>/dev/null || true
 if ! systemctl --user is-enabled noctalia-gtk &>/dev/null 2>&1; then

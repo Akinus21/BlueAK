@@ -5,7 +5,7 @@ PartOf=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=%h/.local/bin/noctalia-gtk
+ExecStart=/usr/local/bin/noctalia-gtk
 Restart=on-failure
 RestartSec=3
 

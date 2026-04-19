@@ -138,54 +138,55 @@ COPY config/systemd/bootc-nightly-reboot.timer   /etc/systemd/system/bootc-night
 RUN systemctl enable bootc-nightly-reboot.timer
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 10. Pre-create the default files folder in skel
+# 10. AkTags + Noctalia-gtk — build both from source in one Rust layer
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 RUN mkdir -p /etc/skel/files
 
-# ── AkTags — AI-powered tag-based file browser ───────────────────────────────
-# Download binary
-RUN curl -fsSL \
-    https://github.com/akinus21/aktags/releases/download/latest/aktags \
-    -o /usr/bin/aktags && \
-    chmod +x /usr/bin/aktags
+# Install Rust toolchain + build deps (shared by both projects)
+RUN dnf install -y rust cargo gcc gtk4-devel libadwaita-devel
 
-# Download .desktop file
-RUN curl -fsSL \
-    https://raw.githubusercontent.com/akinus21/aktags/main/aktags.desktop \
-    -o /usr/share/applications/aktags.desktop && \
-    update-desktop-database /usr/share/applications/ 2>/dev/null || true
+# ── AkTags — tag-based AI file browser (source build, no releases) ───────────
+RUN curl -fsSL https://github.com/Akinus21/Aktags/archive/refs/heads/main.tar.gz \
+        -o /tmp/aktags.tar.gz && \
+    tar xzf /tmp/aktags.tar.gz -C /tmp && \
+    cd /tmp/Aktags-main && \
+    cargo build --release && \
+    install -m755 target/release/aktags /usr/bin/aktags && \
+    if [[ -f aktags.desktop ]]; then \
+        install -m644 aktags.desktop /usr/share/applications/aktags.desktop; \
+    else \
+        printf '[Desktop Entry]\nName=AkTags\nComment=Tag-based AI file browser\nExec=aktags\nIcon=folder\nType=Application\nCategories=Utility;FileManager;\nMimeType=inode/directory;\n' \
+        > /usr/share/applications/aktags.desktop; \
+    fi && \
+    update-desktop-database /usr/share/applications/ 2>/dev/null || true && \
+    rm -rf /tmp/Aktags-main /tmp/aktags.tar.gz
 
-# Install systemd user service for daemon mode (runs on login, no GUI)
-RUN mkdir -p /etc/skel/.config/systemd/user
-COPY config/systemd/aktags-daemon.service /etc/skel/.config/systemd/user/aktags-daemon.service
-
-# Seed Noctalia config (color source for noctalia-gtk)
-RUN mkdir -p /etc/skel/.config/noctalia
-COPY config/noctalia/ /etc/skel/.config/noctalia/
-
-# ── Noctalia-gtk — GTK theme sync daemon ─────────────────────────────────────
-# Build from source (no releases yet)
-RUN dnf install -y gcc rust cargo && \
-    curl -fsSL https://github.com/akinus21/Noctalia-gtk/archive/refs/heads/main.tar.gz \
-    -o /tmp/noctalia-gtk.tar.gz && \
+# ── Noctalia-gtk — GTK theme color sync daemon (source build) ────────────────
+RUN curl -fsSL https://github.com/Akinus21/Noctalia-gtk/archive/refs/heads/main.tar.gz \
+        -o /tmp/noctalia-gtk.tar.gz && \
     tar xzf /tmp/noctalia-gtk.tar.gz -C /tmp && \
     cd /tmp/Noctalia-gtk-main && \
     cargo build --release && \
-    mv target/release/noctalia-gtk /usr/local/bin/ && \
-    chmod +x /usr/local/bin/noctalia-gtk && \
-    rm -rf /tmp/Noctalia-gtk /tmp/noctalia-gtk.tar.gz && \
-    dnf remove -y gcc rust cargo && \
-    dnf clean all
+    install -m755 target/release/noctalia-gtk /usr/local/bin/noctalia-gtk && \
+    rm -rf /tmp/Noctalia-gtk-main /tmp/noctalia-gtk.tar.gz
 
-# Install noctalia-gtk systemd user service
-COPY config/systemd/noctalia-gtk.service /etc/skel/.config/systemd/user/noctalia-gtk.service
+# Remove build toolchain — keeps final image lean
+RUN dnf remove -y rust cargo gcc gtk4-devel libadwaita-devel && dnf clean all
+
+# ── Systemd user services (seeded into /etc/skel so every new user gets them) ─
+RUN mkdir -p /etc/skel/.config/systemd/user
+COPY config/systemd/aktags-daemon.service    /etc/skel/.config/systemd/user/aktags-daemon.service
+COPY config/systemd/noctalia-gtk.service     /etc/skel/.config/systemd/user/noctalia-gtk.service
+
+# ── Noctalia color config seed ────────────────────────────────────────────────
+RUN mkdir -p /etc/skel/.config/noctalia
+COPY config/noctalia/ /etc/skel/.config/noctalia/
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 11. Configs + first-login bootstrap
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 COPY config/niri/     /etc/skel/.config/niri/
-COPY config/noctalia/ /etc/skel/.config/noctalia/
 COPY config/profile.d/blueak-init.sh /etc/profile.d/blueak-init.sh
 RUN chmod +x /etc/profile.d/blueak-init.sh
 
