@@ -1,7 +1,7 @@
 ---
 name: Build container image
 # bump2
-on:
+"on":
   pull_request:
     branches:
       - main
