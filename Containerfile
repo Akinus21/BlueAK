@@ -204,13 +204,16 @@ COPY config/gtk-4.0/settings.ini /etc/skel/.config/gtk-4.0/settings.ini
 RUN mkdir -p /etc/skel/.config/nyxt
 COPY config/nyxt/config.lisp /etc/skel/.config/nyxt/config.lisp
 
-# ── Nyxt — GitHub release AppImage ──────────────────────────────────────────
+# ── Nyxt — GitHub release tarball ──────────────────────────────────────────────
 RUN NYXT_VERSION=$(curl -fsSL https://api.github.com/repos/atlas-engineer/nyxt/releases/latest \
       | grep '"tag_name"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/') && \
     curl -fsSL \
-      "https://github.com/atlas-engineer/nyxt/releases/download/${NYXT_VERSION}/nyxt-${NYXT_VERSION}.AppImage" \
-      -o /usr/local/bin/nyxt && \
-    chmod +x /usr/local/bin/nyxt
+      "https://github.com/atlas-engineer/nyxt/releases/download/${NYXT_VERSION}/Linux-Nyxt-x86_64.tar.gz" \
+      -o /tmp/nyxt.tar.gz && \
+    tar xzf /tmp/nyxt.tar.gz -C /tmp && \
+    mv /tmp/nyxt-*/nyxt /usr/local/bin/nyxt && \
+    chmod +x /usr/local/bin/nyxt && \
+    rm -rf /tmp/nyxt*
 
 # ── Nyxt — .desktop entry + MIME types ──────────────────────────────────────
 COPY config/nyxt/nyxt.desktop /usr/share/applications/nyxt.desktop
