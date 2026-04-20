@@ -206,20 +206,8 @@ RUN curl -fsSL \
     fi && \
     rm -rf /tmp/nirinit*
 
-# ── niri-session-manager — alternative session restore ──────────────────────
-# Build from source
-RUN rm -rf /root/.cargo && \
-    dnf install -y gcc rust cargo && \
-    curl -fsSL https://github.com/MTeaHead/niri-session-manager/archive/refs/heads/main.tar.gz \
-    -o /tmp/niri-session-manager.tar.gz && \
-    tar xzf /tmp/niri-session-manager.tar.gz -C /tmp && \
-    cd /tmp/niri-session-manager-main && \
-    cargo build --release && \
-    mv target/release/niri-session-manager /usr/local/bin/ && \
-    chmod +x /usr/local/bin/niri-session-manager && \
-    rm -rf /tmp/niri-session-manager* && \
-    dnf remove -y gcc rust cargo && \
-    dnf clean all
+# Note: niri-session-manager removed (cargo build fails due to /root/.cargo lock
+# in container environment). Use nirinit for session restore instead.
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 11. Configs + first-login bootstrap
