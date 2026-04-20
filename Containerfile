@@ -144,17 +144,6 @@ RUN systemctl enable bootc-nightly-reboot.timer
 
 RUN mkdir -p /etc/skel/files
 
-# Install Rust toolchain + all build deps (shared by Aktags and Noctalia-gtk)
-# iced (Aktags GUI) needs wayland/X11/EGL/font devel headers
-RUN dnf install -y \
-    rust cargo gcc \
-    gtk4-devel libadwaita-devel \
-    wayland-devel libxkbcommon-devel \
-    mesa-libEGL-devel \
-    libX11-devel libXcursor-devel libXi-devel libXrandr-devel \
-    fontconfig-devel freetype-devel \
-    openssl-devel
-
 # ── AkTags — tag-based AI file browser (pre-built binary) ────────────────────
 RUN curl -fsSL \
     https://github.com/Akinus21/Aktags/releases/download/v0.1.0-20260419060705-5e028144/aktags \
@@ -172,16 +161,6 @@ RUN curl -fsSL \
     chmod +x /usr/local/bin/noctalia-gtk \
     || echo "Noctalia-gtk release not found — will be installed via blueak-init.sh"
 
-# Remove build toolchain — keeps final image lean
-RUN dnf remove -y \
-    rust cargo gcc \
-    gtk4-devel libadwaita-devel \
-    wayland-devel libxkbcommon-devel \
-    mesa-libEGL-devel \
-    libX11-devel libXcursor-devel libXi-devel libXrandr-devel \
-    fontconfig-devel freetype-devel \
-    openssl-devel && \
-    dnf clean all
 
 # ── Systemd user services (seeded into /etc/skel so every new user gets them) ─
 RUN mkdir -p /etc/skel/.config/systemd/user
