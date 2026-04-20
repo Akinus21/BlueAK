@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Nyxt Browser
+Comment=REST-free web browser
+Exec=/usr/local/bin/nyxt %u
+Icon=org.nyxt.Nyxt
+Terminal=false
+Type=Application
+Categories=Network;WebBrowser;
+MimeType=text/html;application/xhtml+xml;application/xml;text/xml;x-scheme-handler/http;x-scheme-handler/https;x-scheme-handler/ftp;
+StartupNotify=true
+StartupWMClass=nyxt

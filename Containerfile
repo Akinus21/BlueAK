@@ -201,13 +201,20 @@ COPY config/gtk-3.0/settings.ini /etc/skel/.config/gtk-3.0/settings.ini
 COPY config/gtk-4.0/settings.ini /etc/skel/.config/gtk-4.0/settings.ini
 
 # ── Eldritch Theme — Nyxt ───────────────────────────────────────────────────
-RUN mkdir -p /etc/skel/.var/app/org.nyxt.Nyxt/config
-COPY config/nyxt/config.lisp /etc/skel/.var/app/org.nyxt.Nyxt/config/config.lisp
+RUN mkdir -p /etc/skel/.config/nyxt
+COPY config/nyxt/config.lisp /etc/skel/.config/nyxt/config.lisp
 
-# ── Flatpak ────────────────────────────────────────────────────────────────
-RUN flatpak remote-add --user --if-not-exists flathub \
-    https://dl.flathub.org/repo/flathub.flatpakrepo || true
-RUN flatpak install --user -y flathub org.nyxt.Nyxt || true
+# ── Nyxt — GitHub release AppImage ──────────────────────────────────────────
+RUN NYXT_VERSION=$(curl -fsSL https://api.github.com/repos/atlas-engineer/nyxt/releases/latest \
+      | grep '"tag_name"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/') && \
+    curl -fsSL \
+      "https://github.com/atlas-engineer/nyxt/releases/download/${NYXT_VERSION}/nyxt-${NYXT_VERSION}.AppImage" \
+      -o /usr/local/bin/nyxt && \
+    chmod +x /usr/local/bin/nyxt
+
+# ── Nyxt — .desktop entry + MIME types ──────────────────────────────────────
+COPY config/nyxt/nyxt.desktop /usr/share/applications/nyxt.desktop
+RUN update-desktop-database /usr/share/applications/ 2>/dev/null || true
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 12. Cleanup

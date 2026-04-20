@@ -71,7 +71,7 @@ The "Eldritch" theme defines BlueAK's unified color system across multiple appli
 | Code        | `#9071f4` | Eldritch Purple/Blue      |
 
 **Applications that use this palette:**
-- **Nyxt** → `~/.var/app/org.nyxt.Nyxt/config/config.lisp` (Lisp theme config)
+- **Nyxt** → `~/.config/nyxt/config.lisp` (Lisp theme config)
 - **GTK3** → `~/.config/gtk-3.0/settings.ini`
 - **GTK4** → `~/.config/gtk-4.0/settings.ini`
 - **Terminal colors** → `config/zsh/` (P10k, zshrc)

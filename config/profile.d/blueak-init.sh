@@ -5,56 +5,45 @@
 # Each section checks before acting, so re-running is always safe and fast.
 # Sourced by /etc/zsh/zshenv — MUST NOT exit or use bare 'exit'.
 #
+# Silent: all output goes only to the log file, never to the terminal.
 # Logs to: ~/.local/share/blueak/init.log
-# To bump a package version: update the VERSION variable in its section.
-# To force full re-run:       rm ~/.local/share/blueak/.versions
+# To watch live:        tail -f ~/.local/share/blueak/init.log
+# To bump a version:    update the VERSION variable in its section
+# To force full re-run: rm ~/.local/share/blueak/.versions
 
-# ── Run in subshell so sourcing shell is never affected by errors ─────────────
+# ── Establish log path before backgrounding ───────────────────────────────────
+_BLUEAK_LOG_DIR="$HOME/.local/share/blueak"
+_BLUEAK_LOG="$_BLUEAK_LOG_DIR/init.log"
+mkdir -p "$_BLUEAK_LOG_DIR"
+
+# ── Fire-and-forget subshell — zero terminal output ──────────────────────────
 (
 set -uo pipefail
 
-########################################
-# PATHS
-########################################
-
-LOG_DIR="$HOME/.local/share/blueak"
-LOG="$LOG_DIR/init.log"
-VERSION_FILE="$LOG_DIR/.versions"   # tracks installed versions for update checks
+LOG_DIR="$_BLUEAK_LOG_DIR"
+LOG="$_BLUEAK_LOG"
+VERSION_FILE="$LOG_DIR/.versions"
 
 mkdir -p "$LOG_DIR" "$HOME/.local/bin" "$HOME/.local/share/applications"
 
-# Rotate log if over 1MB to prevent unbounded growth
+# Rotate log if over 1 MB
 [[ -f "$LOG" ]] && [[ $(stat -c%s "$LOG" 2>/dev/null || echo 0) -gt 1048576 ]] \
     && mv "$LOG" "${LOG}.old"
 
-exec > >(tee -a "$LOG") 2>&1
+exec >> "$LOG" 2>&1
+
 echo ""
 echo "════════════════════════════════════════"
 echo "[blueak-init] $(date '+%Y-%m-%d %H:%M:%S') — login init"
 echo "════════════════════════════════════════"
 
 ########################################
-# COLORS
+# HELPERS
 ########################################
 
-if [[ -t 1 ]]; then
-    GREEN="\033[32m"; BLUE="\033[34m"
-    YELLOW="\033[33m"; RESET="\033[0m"
-else
-    GREEN=""; BLUE=""; YELLOW=""; RESET=""
-fi
-
-log()  { echo -e "${BLUE}➜${RESET}  $1"; }
-ok()   { echo -e "${GREEN}✔${RESET}  $1"; }
-warn() { echo -e "${YELLOW}!${RESET}  $1"; }
-
-########################################
-# VERSION TRACKING
-# ~/.local/share/blueak/.versions stores
-# key=value pairs of installed versions.
-# Bump a VERSION var below to trigger an
-# update on the next login.
-########################################
+log()  { echo "➜  $1"; }
+ok()   { echo "✔  $1"; }
+warn() { echo "!  $1"; }
 
 get_version() {
     grep "^${1}=" "$VERSION_FILE" 2>/dev/null | cut -d= -f2 || echo ""
@@ -69,13 +58,7 @@ set_version() {
     fi
 }
 
-########################################
-# SKEL COPY HELPER
-# Copies a file from /etc/skel if the
-# source exists and dest is missing or
-# has changed (e.g. after image update).
-########################################
-
+# Copy a file from /etc/skel if missing or changed since last image update.
 skel_copy() {
     local src="/etc/skel/$1"
     local dest="$HOME/$1"
@@ -128,22 +111,11 @@ if ! require_brew; then
     warn "Homebrew not found — skipping brew packages"
     warn "Install it with: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
 else
-    # Git workflow
     for pkg in lazygit git-delta gh gitleaks; do brew_ensure "$pkg"; done
-
-    # Shell / terminal
     for pkg in atuin tmux tldr; do brew_ensure "$pkg"; done
-
-    # Data & scripting
     for pkg in jq yq xh; do brew_ensure "$pkg"; done
-
-    # Security / SOC
     for pkg in trivy grype; do brew_ensure "$pkg"; done
-
-    # File management & productivity
     for pkg in yazi duf dust age; do brew_ensure "$pkg"; done
-
-    # Fonts — homebrew/cask-fonts tap deprecated, fonts now in main tap
     brew_ensure "font-meslo-lg-nerd-font" --cask
 fi
 
@@ -168,11 +140,75 @@ else
 fi
 
 ########################################
-# TAG-BASED FILE BROWSER
+# 3. NYXT BROWSER
+# Baked into the image as an AppImage at
+# /usr/local/bin/nyxt.
+#
+# Handles both new and existing users:
+#   - Removes old flatpak install if present
+#   - Migrates config from flatpak sandbox
+#     path to ~/.config/nyxt/
+#   - Seeds config from skel (new users, or
+#     when image ships an updated config)
+#   - Registers .desktop + MIME types
+########################################
+
+log "--- Nyxt ---"
+
+# ── Migration: remove old flatpak Nyxt if present ────────────────────────────
+if flatpak list --user --app 2>/dev/null | grep -q "org.nyxt.Nyxt"; then
+    log "Nyxt: removing old flatpak install..."
+    flatpak uninstall --user -y org.nyxt.Nyxt 2>/dev/null \
+        && ok "Nyxt: flatpak removed" \
+        || warn "Nyxt: flatpak removal failed (non-fatal)"
+fi
+
+# ── Migration: move config from flatpak sandbox → XDG path ───────────────────
+OLD_NYXT_CFG="$HOME/.var/app/org.nyxt.Nyxt/config/config.lisp"
+NEW_NYXT_CFG="$HOME/.config/nyxt/config.lisp"
+if [[ -f "$OLD_NYXT_CFG" ]] && [[ ! -f "$NEW_NYXT_CFG" ]]; then
+    mkdir -p "$HOME/.config/nyxt"
+    cp "$OLD_NYXT_CFG" "$NEW_NYXT_CFG" \
+        && ok "Nyxt: config migrated flatpak sandbox → ~/.config/nyxt/" \
+        || warn "Nyxt: config migration failed"
+fi
+
+# ── Seed config from skel (new users only — never overwrite user edits) ──────
+if [[ ! -f "$NEW_NYXT_CFG" ]]; then
+    skel_copy ".config/nyxt/config.lisp"
+else
+    ok "Nyxt: config present — skipping skel seed"
+fi
+
+# ── Register .desktop entry for launcher ─────────────────────────────────────
+NYXT_DESKTOP_SRC="/usr/share/applications/nyxt.desktop"
+NYXT_DESKTOP_USR="$HOME/.local/share/applications/nyxt.desktop"
+if [[ -f "$NYXT_DESKTOP_SRC" ]]; then
+    if [[ ! -f "$NYXT_DESKTOP_USR" ]] || ! cmp -s "$NYXT_DESKTOP_SRC" "$NYXT_DESKTOP_USR"; then
+        cp "$NYXT_DESKTOP_SRC" "$NYXT_DESKTOP_USR" \
+            && ok "Nyxt: .desktop entry installed" \
+            || warn "Nyxt: .desktop install failed"
+    else
+        ok "Nyxt: .desktop entry up to date"
+    fi
+else
+    warn "Nyxt: /usr/share/applications/nyxt.desktop not found — launcher registration skipped"
+fi
+
+# ── Refresh desktop database so launcher picks up the entry ──────────────────
+if command -v update-desktop-database &>/dev/null; then
+    update-desktop-database "$HOME/.local/share/applications/" 2>/dev/null \
+        && ok "Nyxt: desktop database refreshed" \
+        || warn "Nyxt: desktop database refresh failed (non-fatal)"
+fi
+
+########################################
+# 4. TAG-BASED FILE BROWSER
 ########################################
 
 log "--- AkTags Daemon ---"
-mkdir -p ~/.config/systemd/user
+mkdir -p ~/.config/systemd/user ~/.local/bin
+ln -sf /usr/bin/aktags ~/.local/bin/aktags 2>/dev/null || true
 skel_copy ".config/systemd/user/aktags-daemon.service"
 systemctl --user daemon-reload 2>/dev/null || true
 if ! systemctl --user is-enabled aktags-daemon &>/dev/null 2>&1; then
@@ -183,13 +219,14 @@ else
     ok "AkTags daemon enabled"
 fi
 
-xdg-mime default aktags.desktop inode/directory
+xdg-mime default aktags.desktop inode/directory 2>/dev/null || true
 
 ########################################
-# NOCTALIA-GTK (GTK theme sync)
+# 5. NOCTALIA-GTK (GTK theme sync)
 ########################################
 
 log "--- Noctalia GTK Theme Sync ---"
+ln -sf /usr/local/bin/noctalia-gtk ~/.local/bin/noctalia-gtk 2>/dev/null || true
 skel_copy ".config/systemd/user/noctalia-gtk.service"
 systemctl --user daemon-reload 2>/dev/null || true
 if ! systemctl --user is-enabled noctalia-gtk &>/dev/null 2>&1; then
@@ -201,12 +238,11 @@ else
 fi
 
 ########################################
-# CAC SETUP
+# 6. CAC SETUP
 ########################################
 
 log "--- CAC setup ---"
 
-# User NSS database — needed by Chrome, certutil, document signing
 if [[ ! -f "$HOME/.pki/nssdb/cert9.db" ]]; then
     mkdir -p "$HOME/.pki/nssdb"
     certutil -d sql:"$HOME/.pki/nssdb" -N --empty-password 2>/dev/null \
@@ -216,7 +252,6 @@ else
     ok "NSS database present"
 fi
 
-# GnuPG scdaemon — prevent it from stealing the reader from pcscd
 SCDAEMON_CONF="$HOME/.gnupg/scdaemon.conf"
 mkdir -p "$HOME/.gnupg" && chmod 700 "$HOME/.gnupg"
 if ! grep -q "disable-ccid" "$SCDAEMON_CONF" 2>/dev/null; then
@@ -234,6 +269,7 @@ fi
 echo ""
 ok "blueak-init complete — $(date '+%H:%M:%S')"
 
-) # end subshell — sourcing shell is unaffected regardless of what happened above
+) &
+disown 2>/dev/null || true
 
 return 0 2>/dev/null || true
