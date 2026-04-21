@@ -1,11 +1,11 @@
 FROM ghcr.io/ublue-os/bluefin:latest
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 1. Add Terra repo and install terra-release
+# 1. Terra repo is added dynamically at runtime (see blueak-init.sh) since
+#    the Terra repo for Fedora 43 can have transient availability issues.
+#    noctalia-shell and matugen are installed at runtime with fallback to
+#    ensure the build is resilient.
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RUN dnf install -y --nogpgcheck \
-    --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' \
-    terra-release
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 2. Install desktop stack
