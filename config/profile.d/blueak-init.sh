@@ -195,13 +195,13 @@ if [[ ! -f "$HOME/.local/bin/set-nyxt-theme" ]] || \
         || warn "Nyxt: set-nyxt-theme script install failed"
 fi
 
-# ── Apply default theme (eldritch) if none selected ─────────────────────────
+# ── Apply default theme (noctalia — live syncs with Noctalia-gtk daemon) ──
 NYXT_THEME_MARKER="$THEMES_DIR/current"
 if [[ ! -f "$NYXT_THEME_MARKER" ]]; then
     if command -v set-nyxt-theme &>/dev/null; then
-        set-nyxt-theme eldritch && ok "Nyxt: default theme (eldritch) applied"
+        set-nyxt-theme noctalia && ok "Nyxt: default theme (noctalia) applied — syncs with Noctalia-gtk"
     elif [[ -f "$HOME/.local/bin/set-nyxt-theme" ]]; then
-        python3 "$HOME/.local/bin/set-nyxt-theme" eldritch && ok "Nyxt: default theme (eldritch) applied"
+        python3 "$HOME/.local/bin/set-nyxt-theme" noctalia && ok "Nyxt: default theme (noctalia) applied — syncs with Noctalia-gtk"
     fi
 fi
 
