@@ -150,10 +150,13 @@ RUN systemctl enable bootc-nightly-reboot.timer
 RUN mkdir -p /etc/skel/files
 
 # ── AkTags — tag-based AI file browser (pre-built binary) ────────────────────
+# Download to /tmp first, then install — avoids write errors if /usr/local is a file
 RUN set -eo pipefail && \
     AKTAGS_TAG=$(curl -fsSL https://api.github.com/repos/Akinus21/Aktags/releases/latest | grep '"tag_name"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/') && \
-    curl -fsSL "https://github.com/Akinus21/Aktags/releases/download/${AKTAGS_TAG}/aktags" -o /usr/local/bin/aktags && \
-    chmod +x /usr/local/bin/aktags
+    curl -fsSL "https://github.com/Akinus21/Aktags/releases/download/${AKTAGS_TAG}/aktags" -o /tmp/aktags && \
+    rm -rf /usr/local && mkdir -p /usr/local/bin && \
+    install -m 755 /tmp/aktags /usr/local/bin/aktags && \
+    rm -f /tmp/aktags
 
 # ── AkTags desktop entry for autostart ─────────────────────────────────────────
 COPY config/aktags/aktags.desktop /etc/skel/.config/autostart/aktags.desktop
