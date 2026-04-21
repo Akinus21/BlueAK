@@ -196,8 +196,8 @@ RUN curl -fsSL \
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 11. Configs + first-login bootstrap (blueak-init)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Install blueak-init script system-wide
-RUN install -m 755 -D config/blueak-init/blueak-init /usr/bin/blueak-init
+# Install blueak-init script system-wide (install -D handles file-over-dir atomically)
+RUN install -m 755 -D config/blueak-init/blueak-init /usr/local/bin/blueak-init
 
 # Seed blueak-init systemd user service and autostart for new users
 RUN mkdir -p /etc/skel/.config/systemd/user /etc/skel/.config/autostart

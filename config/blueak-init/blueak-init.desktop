@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=BlueAK Init
 Comment=BlueAK first-login bootstrap and update checker
-Exec=/usr/bin/bash /usr/bin/blueak-init
+Exec=/usr/local/bin/blueak-init
 Terminal=false
 Type=Application
 Hidden=false

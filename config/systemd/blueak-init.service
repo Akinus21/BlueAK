@@ -5,7 +5,7 @@ PartOf=graphical-session.target
 
 [Service]
 Type=oneshot
-ExecStart=%h/.local/bin/blueak-init
+ExecStart=/usr/local/bin/blueak-init
 RemainAfterExit=yes
 Environment=DISPLAY=:0
 Environment=XDG_CURRENT_DESKTOP=GNOME
