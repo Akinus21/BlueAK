@@ -253,6 +253,19 @@ xdg-mime default aktags.desktop inode/directory 2>/dev/null || true
 log "--- Noctalia GTK Theme Sync ---"
 ln -sf /usr/local/bin/noctalia-gtk ~/.local/bin/noctalia-gtk 2>/dev/null || true
 skel_copy ".config/systemd/user/noctalia-gtk.service"
+skel_copy ".config/noctalia/settings.json"
+mkdir -p "$HOME/.config/noctalia"
+for scheme_src in /etc/skel/.config/noctalia/*.json; do
+    if [[ -f "$scheme_src" ]]; then
+        scheme_name=$(basename "$scheme_src")
+        if [[ ! -f "$HOME/.config/noctalia/$scheme_name" ]] || \
+           ! cmp -s "$scheme_src" "$HOME/.config/noctalia/$scheme_name" 2>/dev/null; then
+            cp "$scheme_src" "$HOME/.config/noctalia/$scheme_name" \
+                && ok "Noctalia: scheme $scheme_name seeded" \
+                || warn "Noctalia: failed to seed scheme $scheme_name"
+        fi
+    fi
+done
 systemctl --user daemon-reload 2>/dev/null || true
 if ! systemctl --user is-enabled noctalia-gtk &>/dev/null 2>&1; then
     systemctl --user enable --now noctalia-gtk 2>/dev/null \
@@ -260,6 +273,15 @@ if ! systemctl --user is-enabled noctalia-gtk &>/dev/null 2>&1; then
         || warn "Noctalia GTK daemon failed"
 else
     ok "Noctalia GTK daemon enabled"
+fi
+
+# ── Sync Nyxt to Noctalia live theme ─────────────────────────────────────────
+if [[ -f "$HOME/.config/noctalia/colors.json" ]]; then
+    if command -v set-nyxt-theme &>/dev/null; then
+        set-nyxt-theme noctalia && ok "Nyxt: synced to Noctalia live colors"
+    elif [[ -f "$HOME/.local/bin/set-nyxt-theme" ]]; then
+        python3 "$HOME/.local/bin/set-nyxt-theme" noctalia && ok "Nyxt: synced to Noctalia live colors"
+    fi
 fi
 
 ########################################
