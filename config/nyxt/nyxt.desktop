@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Nyxt Browser
 Comment=REST-free web browser
-Exec=/opt/blueak/bin/nyxt %u
+Exec=/usr/bin/nyxt %u
 Icon=org.nyxt.Nyxt
 Terminal=false
 Type=Application
