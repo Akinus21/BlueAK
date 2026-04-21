@@ -1,0 +1,15 @@
+{
+  "name": "Purple Haze",
+  "description": "Opera GX Purple Haze preset — deep violet with cyan accents",
+  "colors": {
+    "background": "#150d26",
+    "foreground": "#e0d9f5",
+    "primary": "#1f1733",
+    "secondary": "#8b5cf6",
+    "success": "#50fa7b",
+    "warning": "#f1fa8c",
+    "highlight": "#00d4ff",
+    "text": "#e0d9f5",
+    "contrast-text": "#150d26"
+  }
+}
