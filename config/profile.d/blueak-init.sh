@@ -232,9 +232,10 @@ fi
 ########################################
 
 log "--- AkTags Daemon ---"
-mkdir -p ~/.config/systemd/user ~/.local/bin
-ln -sf /usr/bin/aktags ~/.local/bin/aktags 2>/dev/null || true
+mkdir -p ~/.config/systemd/user ~/.local/bin ~/.config/autostart
+ln -sf /usr/local/bin/aktags ~/.local/bin/aktags 2>/dev/null || true
 skel_copy ".config/systemd/user/aktags-daemon.service"
+skel_copy ".config/autostart/aktags.desktop"
 systemctl --user daemon-reload 2>/dev/null || true
 if ! systemctl --user is-enabled aktags-daemon &>/dev/null 2>&1; then
     systemctl --user enable --now aktags-daemon 2>/dev/null \

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=AkTags
+Comment=AI-powered tag-based file browser
+Exec=/usr/local/bin/aktags
+Icon=folder
+Terminal=false
+Type=Application
+Categories=Utility;FileTools;
+StartupNotify=true
+X-GNOME-Autostart-enabled=true

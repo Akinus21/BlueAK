@@ -150,13 +150,17 @@ RUN systemctl enable bootc-nightly-reboot.timer
 RUN mkdir -p /etc/skel/files
 
 # ── AkTags — tag-based AI file browser (pre-built binary) ────────────────────
-RUN curl -fsSL \
-    https://github.com/Akinus21/Aktags/releases/download/v0.1.0-20260419060705-5e028144/aktags \
-    -o /usr/bin/aktags && \
-    chmod +x /usr/bin/aktags && \
-    printf '[Desktop Entry]\nName=AkTags\nComment=Tag-based AI file browser\nExec=aktags\nIcon=folder\nType=Application\nCategories=Utility;FileManager;\nMimeType=inode/directory;\n' \
-    > /usr/share/applications/aktags.desktop && \
-    update-desktop-database /usr/share/applications/ 2>/dev/null || true
+RUN AKTAGS_TAG=$(curl -fsSL https://api.github.com/repos/Akinus21/Aktags/releases/latest \
+      | grep '"tag_name"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/') && \
+    curl -fsSL "https://github.com/Akinus21/Aktags/releases/download/${AKTAGS_TAG}/aktags" \
+      -o /usr/local/bin/aktags && \
+    chmod +x /usr/local/bin/aktags
+
+# ── AkTags desktop entry for autostart ─────────────────────────────────────────
+COPY config/aktags/aktags.desktop /etc/skel/.config/autostart/aktags.desktop
+
+# ── AkTags systemd user service ───────────────────────────────────────────────
+COPY config/systemd/aktags-daemon.service /etc/skel/.config/systemd/user/aktags-daemon.service
 
 # ── Noctalia-gtk — GTK theme color sync daemon ───────────────────────────────
 # Download pre-built binary if available; if not available yet, skip
@@ -169,7 +173,6 @@ RUN curl -fsSL \
 
 # ── Systemd user services (seeded into /etc/skel so every new user gets them) ─
 RUN mkdir -p /etc/skel/.config/systemd/user
-COPY config/systemd/aktags-daemon.service    /etc/skel/.config/systemd/user/aktags-daemon.service
 COPY config/systemd/noctalia-gtk.service     /etc/skel/.config/systemd/user/noctalia-gtk.service
 
 # ── Noctalia color config seed ────────────────────────────────────────────────
