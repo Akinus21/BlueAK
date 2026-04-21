@@ -206,8 +206,11 @@ COPY config/gtk-3.0/settings.ini /etc/skel/.config/gtk-3.0/settings.ini
 COPY config/gtk-4.0/settings.ini /etc/skel/.config/gtk-4.0/settings.ini
 
 # ── Eldritch Theme — Nyxt ───────────────────────────────────────────────────
-RUN mkdir -p /etc/skel/.config/nyxt
+RUN mkdir -p /etc/skel/.config/nyxt/themes
 COPY config/nyxt/config.lisp /etc/skel/.config/nyxt/config.lisp
+COPY config/nyxt/themes/       /etc/skel/.config/nyxt/themes/
+COPY config/nyxt/set-nyxt-theme /etc/skel/.local/bin/set-nyxt-theme
+RUN chmod +x /etc/skel/.local/bin/set-nyxt-theme
 
 # ── Nyxt — GitHub release tarball ──────────────────────────────────────────────
 RUN NYXT_VERSION=$(curl -fsSL https://api.github.com/repos/atlas-engineer/nyxt/releases/latest \

@@ -16,30 +16,37 @@ _BLUEAK_LOG_DIR="$HOME/.local/share/blueak"
 _BLUEAK_LOG="$_BLUEAK_LOG_DIR/init.log"
 mkdir -p "$_BLUEAK_LOG_DIR"
 
-# ── Fire-and-forget subshell — zero terminal output ──────────────────────────
-(
-set -uo pipefail
+# ── First login vs subsequent ───────────────────────────────────────────────
+_FIRST_RUN_MARKER="$_BLUEAK_LOG_DIR/.first-run-done"
+if [[ ! -f "$_FIRST_RUN_MARKER" ]]; then
+    # First login: run synchronously, output to both terminal and log
+    touch "$_FIRST_RUN_MARKER"
+    exec >> >(tee -a "$_BLUEAK_LOG") 2>&1
+else
+    # Subsequent logins: completely silent, background subshell
+    (
+    set -uo pipefail
 
-LOG_DIR="$_BLUEAK_LOG_DIR"
-LOG="$_BLUEAK_LOG"
-VERSION_FILE="$LOG_DIR/.versions"
+    LOG_DIR="$_BLUEAK_LOG_DIR"
+    LOG="$_BLUEAK_LOG"
+    VERSION_FILE="$LOG_DIR/.versions"
 
-mkdir -p "$LOG_DIR" "$HOME/.local/bin" "$HOME/.local/share/applications"
+    mkdir -p "$LOG_DIR" "$HOME/.local/bin" "$HOME/.local/share/applications"
 
-# Rotate log if over 1 MB
-[[ -f "$LOG" ]] && [[ $(stat -c%s "$LOG" 2>/dev/null || echo 0) -gt 1048576 ]] \
-    && mv "$LOG" "${LOG}.old"
+    # Rotate log if over 1 MB
+    [[ -f "$LOG" ]] && [[ $(stat -c%s "$LOG" 2>/dev/null || echo 0) -gt 1048576 ]] \
+        && mv "$LOG" "${LOG}.old"
 
-exec >> "$LOG" 2>&1
+    exec >> "$LOG" 2>&1
 
-echo ""
-echo "════════════════════════════════════════"
-echo "[blueak-init] $(date '+%Y-%m-%d %H:%M:%S') — login init"
-echo "════════════════════════════════════════"
+    echo ""
+    echo "════════════════════════════════════════"
+    echo "[blueak-init] $(date '+%Y-%m-%d %H:%M:%S') — login init"
+    echo "════════════════════════════════════════"
 
-########################################
-# HELPERS
-########################################
+    ########################################
+    # HELPERS
+    ########################################
 
 log()  { echo "➜  $1"; }
 ok()   { echo "✔  $1"; }
@@ -141,15 +148,13 @@ fi
 
 ########################################
 # 3. NYXT BROWSER
-# Baked into the image as an AppImage at
-# /usr/local/bin/nyxt.
+# Baked into the image as an AppImage at /usr/bin/nyxt.
 #
 # Handles both new and existing users:
 #   - Removes old flatpak install if present
-#   - Migrates config from flatpak sandbox
-#     path to ~/.config/nyxt/
-#   - Seeds config from skel (new users, or
-#     when image ships an updated config)
+#   - Seeds themes directory + set-nyxt-theme script
+#   - Applies default theme (eldritch) if none set
+#   - Updates theme.lisp when image ships changes
 #   - Registers .desktop + MIME types
 ########################################
 
@@ -163,18 +168,42 @@ if flatpak list --user --app 2>/dev/null | grep -q "org.nyxt.Nyxt"; then
         || warn "Nyxt: flatpak removal failed (non-fatal)"
 fi
 
-# ── Migration: move config from flatpak sandbox → XDG path ───────────────────
-OLD_NYXT_CFG="$HOME/.var/app/org.nyxt.Nyxt/config/config.lisp"
-NEW_NYXT_CFG="$HOME/.config/nyxt/config.lisp"
-if [[ -f "$OLD_NYXT_CFG" ]] && [[ ! -f "$NEW_NYXT_CFG" ]]; then
-    mkdir -p "$HOME/.config/nyxt"
-    cp "$OLD_NYXT_CFG" "$NEW_NYXT_CFG" \
-        && ok "Nyxt: config migrated flatpak sandbox → ~/.config/nyxt/" \
-        || warn "Nyxt: config migration failed"
+# ── Seed Nyxt config (overwrite to propagate theme changes) ─────────────────
+skel_copy ".config/nyxt/config.lisp"
+
+# ── Seed themes directory ───────────────────────────────────────────────────
+THEMES_DIR="$HOME/.config/nyxt/themes"
+mkdir -p "$THEMES_DIR"
+for theme_src in /etc/skel/.config/nyxt/themes/*.json; do
+    if [[ -f "$theme_src" ]]; then
+        theme_name=$(basename "$theme_src")
+        if [[ ! -f "$THEMES_DIR/$theme_name" ]] || ! cmp -s "$theme_src" "$THEMES_DIR/$theme_name"; then
+            cp "$theme_src" "$THEMES_DIR/$theme_name" \
+                && ok "Nyxt: theme $theme_name seeded" \
+                || warn "Nyxt: failed to seed theme $theme_name"
+        fi
+    fi
+done
+
+# ── Seed set-nyxt-theme script ────────────────────────────────────────────────
+if [[ ! -f "$HOME/.local/bin/set-nyxt-theme" ]] || \
+   ! cmp -s /etc/skel/.local/bin/set-nyxt-theme "$HOME/.local/bin/set-nyxt-theme" 2>/dev/null; then
+    mkdir -p "$HOME/.local/bin"
+    cp /etc/skel/.local/bin/set-nyxt-theme "$HOME/.local/bin/set-nyxt-theme" \
+        && chmod +x "$HOME/.local/bin/set-nyxt-theme" \
+        && ok "Nyxt: set-nyxt-theme script installed" \
+        || warn "Nyxt: set-nyxt-theme script install failed"
 fi
 
-# ── Seed config from skel (overwrite when image ships updated config) ─────────
-skel_copy ".config/nyxt/config.lisp"
+# ── Apply default theme (eldritch) if none selected ─────────────────────────
+NYXT_THEME_MARKER="$THEMES_DIR/current"
+if [[ ! -f "$NYXT_THEME_MARKER" ]]; then
+    if command -v set-nyxt-theme &>/dev/null; then
+        set-nyxt-theme eldritch && ok "Nyxt: default theme (eldritch) applied"
+    elif [[ -f "$HOME/.local/bin/set-nyxt-theme" ]]; then
+        python3 "$HOME/.local/bin/set-nyxt-theme" eldritch && ok "Nyxt: default theme (eldritch) applied"
+    fi
+fi
 
 # ── Register .desktop entry for launcher ─────────────────────────────────────
 NYXT_DESKTOP_SRC="/usr/share/applications/nyxt.desktop"
@@ -262,10 +291,11 @@ fi
 # DONE
 ########################################
 
-echo ""
-ok "blueak-init complete — $(date '+%H:%M:%S')"
+    echo ""
+    ok "blueak-init complete — $(date '+%H:%M:%S')"
 
-) &
-disown 2>/dev/null || true
+    ) &
+    disown 2>/dev/null || true
 
-return 0 2>/dev/null || true
+    return 0 2>/dev/null || true
+fi
