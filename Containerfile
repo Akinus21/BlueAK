@@ -9,15 +9,20 @@ RUN dnf install -y --nogpgcheck \
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 2. Install desktop stack
+# NOTE: noctalia-shell and matugen come from Terra repo (Fyra Labs) which can
+# have transient mirror issues. They are also installed at runtime via
+# blueak-init.sh if not present, making the build more resilient.
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RUN dnf install -y \
-    noctalia-shell \
     niri \
     ulauncher \
     alacritty \
     swaybg \
+    earlyoom && \
+    dnf install -y --setopt=install_weak_deps=False \
+    noctalia-shell \
     matugen \
-    earlyoom
+    || echo "Terra repo packages not available at build time — will be installed at runtime"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 3. CAC smart card support
