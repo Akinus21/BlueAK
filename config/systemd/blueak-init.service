@@ -1,0 +1,15 @@
+[Unit]
+Description=BlueAK first-login bootstrap and update checker
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/blueak-init
+RemainAfterExit=yes
+Environment=DISPLAY=:0
+Environment=XDG_CURRENT_DESKTOP=GNOME
+Environment=XDG_SESSION_TYPE=wayland
+
+[Install]
+WantedBy=graphical-session.target

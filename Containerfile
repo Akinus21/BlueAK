@@ -165,12 +165,7 @@ COPY config/aktags/aktags.desktop /etc/skel/.config/autostart/aktags.desktop
 COPY config/systemd/aktags-daemon.service /etc/skel/.config/systemd/user/aktags-daemon.service
 
 # ── Noctalia-gtk — GTK theme color sync daemon ───────────────────────────────
-# Download pre-built binary if available; if not available yet, skip
-RUN curl -fsSL \
-    https://github.com/Akinus21/Noctalia-gtk/releases/download/latest/noctalia-gtk \
-    -o /usr/local/bin/noctalia-gtk && \
-    chmod +x /usr/local/bin/noctalia-gtk \
-    || echo "Noctalia-gtk release not found — will be installed via blueak-init.sh"
+# Binary not always available in release; installed at runtime by blueak-init if missing
 
 
 # ── Systemd user services (seeded into /etc/skel so every new user gets them) ─
@@ -199,11 +194,18 @@ RUN curl -fsSL \
 # in container environment). Use nirinit for session restore instead.
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 11. Configs + first-login bootstrap
+# 11. Configs + first-login bootstrap (blueak-init)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Install blueak-init script system-wide
+RUN install -m 755 -D config/blueak-init/blueak-init /usr/bin/blueak-init
+
+# Seed blueak-init systemd user service and autostart for new users
+RUN mkdir -p /etc/skel/.config/systemd/user /etc/skel/.config/autostart
+COPY config/blueak-init/blueak-init.service /etc/skel/.config/systemd/user/blueak-init.service
+COPY config/blueak-init/blueak-init.desktop /etc/skel/.config/autostart/blueak-init.desktop
+
+# Legacy profile.d script removed — replaced by systemd user service
 COPY config/niri/     /etc/skel/.config/niri/
-COPY config/profile.d/blueak-init.sh /etc/profile.d/blueak-init.sh
-RUN chmod +x /etc/profile.d/blueak-init.sh
 
 # ── Eldritch Theme — GTK ────────────────────────────────────────────────────
 RUN mkdir -p /etc/skel/.config/gtk-3.0 /etc/skel/.config/gtk-4.0
