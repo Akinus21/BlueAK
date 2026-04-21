@@ -173,12 +173,8 @@ if [[ -f "$OLD_NYXT_CFG" ]] && [[ ! -f "$NEW_NYXT_CFG" ]]; then
         || warn "Nyxt: config migration failed"
 fi
 
-# ── Seed config from skel (new users only — never overwrite user edits) ──────
-if [[ ! -f "$NEW_NYXT_CFG" ]]; then
-    skel_copy ".config/nyxt/config.lisp"
-else
-    ok "Nyxt: config present — skipping skel seed"
-fi
+# ── Seed config from skel (overwrite when image ships updated config) ─────────
+skel_copy ".config/nyxt/config.lisp"
 
 # ── Register .desktop entry for launcher ─────────────────────────────────────
 NYXT_DESKTOP_SRC="/usr/share/applications/nyxt.desktop"
