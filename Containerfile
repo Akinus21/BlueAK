@@ -211,9 +211,8 @@ RUN NYXT_VERSION=$(curl -fsSL https://api.github.com/repos/atlas-engineer/nyxt/r
       "https://github.com/atlas-engineer/nyxt/releases/download/${NYXT_VERSION}/Linux-Nyxt-x86_64.tar.gz" \
       -o /tmp/nyxt.tar.gz && \
     tar xzf /tmp/nyxt.tar.gz -C /tmp && \
-    rm -f /usr/local && mkdir -p /usr/local/bin && \
-    cp /tmp/Nyxt-x86_64.AppImage /usr/local/bin/nyxt && \
-    chmod +x /usr/local/bin/nyxt && \
+    chmod +x /tmp/Nyxt-x86_64.AppImage && \
+    mv /tmp/Nyxt-x86_64.AppImage /usr/bin/nyxt && \
     rm -f /tmp/nyxt.tar.gz
 
 # ── Nyxt — .desktop entry + MIME types ──────────────────────────────────────
