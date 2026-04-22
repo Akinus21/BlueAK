@@ -73,49 +73,6 @@ if command -v firefox &>/dev/null; then
     done
 fi
 
-# ── Flatpak Okular NSS db ────────────────────────────────────────────────────
-OKULAR_FLATPAK_DB="$HOME/.var/app/org.kde.okular/.pki/nssdb"
-if command -v flatpak &>/dev/null && flatpak list --user 2>/dev/null | grep -q "org.kde.okular"; then
-    log "configuring Flatpak Okular..."
-
-    flatpak override --user org.kde.okular \
-        --filesystem=/usr/lib64/pkcs11:ro \
-        --device=all 2>/dev/null || true
-
-    mkdir -p "$OKULAR_FLATPAK_DB"
-    if [[ ! -f "$OKULAR_FLATPAK_DB/cert9.db" ]]; then
-        certutil -d sql:"$OKULAR_FLATPAK_DB" -N --empty-password 2>/dev/null \
-            && ok "Okular NSS db created" \
-            || warn "Okular NSS db creation failed"
-    fi
-
-    if [[ -n "$OPENSCLIB" ]] && [[ -f "$OKULAR_FLATPAK_DB/cert9.db" ]]; then
-        if ! modutil -dbdir sql:"$OKULAR_FLATPAK_DB" -list 2>/dev/null | grep -q "OpenSC"; then
-            modutil -dbdir sql:"$OKULAR_FLATPAK_DB" \
-                -add "OpenSC" -libfile "$OPENSCLIB" \
-                -mechanisms FRIENDLY -force 2>/dev/null \
-                && ok "OpenSC registered in Okular NSS" \
-                || warn "Okular modutil failed"
-        fi
-    fi
-fi
-
-# ── Okular native (non-Flatpak) ──────────────────────────────────────────────
-if command -v okular &>/dev/null && ! flatpak list --user 2>/dev/null | grep -q "org.kde.okular"; then
-    KDE_NSSDB="$HOME/.local/share/kwalletd/nssdb"
-    mkdir -p "$KDE_NSSDB" 2>/dev/null || true
-    if [[ ! -f "$KDE_NSSDB/cert9.db" ]]; then
-        certutil -d sql:"$KDE_NSSDB" -N --empty-password 2>/dev/null 2>/dev/null \
-            && ok "KDE NSS db created" || true
-    fi
-    if [[ -n "$OPENSCLIB" ]] && [[ -f "$KDE_NSSDB/cert9.db" ]]; then
-        modutil -dbdir sql:"$KDE_NSSDB" \
-            -add "OpenSC" -libfile "$OPENSCLIB" \
-            -mechanisms FRIENDLY -force 2>/dev/null \
-            && ok "OpenSC in KDE NSS db" || true
-    fi
-fi
-
 # ── p11-kit system registration (for Chromium/Electron apps) ───────────────
 if [[ -f "/etc/pkcs11/modules/opensc.module" ]]; then
     ok "OpenSC already in p11-kit"
