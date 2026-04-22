@@ -110,8 +110,9 @@ RUN dnf install -y \
 
 # ── OpenCode CLI ───────────────────────────────────────────────────────────────
 # /usr/local is a file in the base image — clean it up before use
+# HOME=/root is also a file in the base image — set HOME to /tmp for npm
 RUN rm -rf /usr/local && mkdir -p /usr/local/bin && \
-    npm install -g opencode-ai
+    HOME=/tmp npm install -g opencode-ai
 
 RUN sed -i 's|^SHELL=.*|SHELL=/bin/zsh|' /etc/default/useradd 2>/dev/null || \
     echo 'SHELL=/bin/zsh' >> /etc/default/useradd
