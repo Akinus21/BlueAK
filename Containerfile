@@ -204,9 +204,11 @@ RUN rm -rf /usr/local && mkdir -p /usr/local/bin && \
     rm -f /tmp/blueak-init
 
 # Seed blueak-init systemd user service and autostart for new users
-RUN mkdir -p /etc/skel/.config/systemd/user /etc/skel/.config/autostart
+RUN mkdir -p /etc/skel/.config/systemd/user /etc/skel/.config/autostart /etc/skel/.local/bin
 COPY config/systemd/blueak-init.service /etc/skel/.config/systemd/user/blueak-init.service
 COPY config/blueak-init/blueak-init.desktop /etc/skel/.config/autostart/blueak-init.desktop
+COPY config/cac/cac-setup /etc/skel/.local/bin/cac-setup
+RUN chmod +x /etc/skel/.local/bin/cac-setup
 
 # Legacy profile.d script removed — replaced by systemd user service
 COPY config/niri/     /etc/skel/.config/niri/

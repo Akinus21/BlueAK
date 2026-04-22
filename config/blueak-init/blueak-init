@@ -314,24 +314,15 @@ main() {
             ok "1Password present"
         fi
 
-        # ── 6. CAC setup ─────────────────────────────────────────────────────
+        # ── 6. CAC setup (full zero-interaction) ─────────────────────────────────
         log "--- CAC setup ---"
-        if [[ ! -f "$HOME/.pki/nssdb/cert9.db" ]]; then
-            mkdir -p "$HOME/.pki/nssdb"
-            certutil -d sql:"$HOME/.pki/nssdb" -N --empty-password 2>/dev/null \
-                && ok "NSS database created" \
-                || warn "certutil not available"
+        CAC_SETUP="/etc/skel/.local/bin/cac-setup"
+        if [[ -x "$CAC_SETUP" ]]; then
+            bash "$CAC_SETUP" && ok "CAC setup complete" || warn "CAC setup failed"
+        elif [[ -f "$CAC_SETUP" ]]; then
+            chmod +x "$CAC_SETUP" && bash "$CAC_SETUP" && ok "CAC setup complete" || warn "CAC setup failed"
         else
-            ok "NSS database present"
-        fi
-        SCDAEMON_CONF="$HOME/.gnupg/scdaemon.conf"
-        mkdir -p "$HOME/.gnupg" && chmod 700 "$HOME/.gnupg"
-        if ! grep -q "disable-ccid" "$SCDAEMON_CONF" 2>/dev/null; then
-            echo "disable-ccid" >> "$SCDAEMON_CONF"
-            gpgconf --kill scdaemon 2>/dev/null || true
-            ok "scdaemon CCID disabled"
-        else
-            ok "scdaemon configured"
+            warn "cac-setup not found in skel — skipping"
         fi
 
         set_version "first_run" "$(date +%s)"
