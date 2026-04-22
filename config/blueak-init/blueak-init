@@ -184,6 +184,13 @@ main() {
 
         log "BlueAK first-run: starting setup..."
 
+        # Show status box during first-run setup
+        if require_zenity; then
+            zenity --info --title="BlueAK Setup" --text="Setting up BlueAK...\n\nThis window will close when complete." --no-wrap --width=400 &
+            local ZENITY_PID=$!
+            disown $ZENITY_PID 2>/dev/null || true
+        fi
+
         # ── 1. AkTags ─────────────────────────────────────────────────────────
         log "--- AkTags ---"
         if ! install_aktags; then
@@ -325,6 +332,16 @@ main() {
             warn "cac-setup not found in skel — skipping"
         fi
 
+        # ── 7. Ollama ──────────────────────────────────────────────────────────────
+        log "--- Ollama ---"
+        skel_copy ".config/systemd/user/ollama.service"
+        systemctl --user daemon-reload 2>/dev/null || true
+        if ! systemctl --user enable --now ollama 2>/dev/null; then
+            warn "Ollama: failed to start"
+        else
+            ok "Ollama: enabled"
+        fi
+
         set_version "first_run" "$(date +%s)"
 
     else
@@ -333,13 +350,20 @@ main() {
 
         fix_service "aktags-daemon" "$HOME/.local/bin/aktags"
         fix_service "noctalia-gtk" "$HOME/.local/bin/noctalia-gtk"
+        fix_service "ollama" "/usr/bin/ollama"
 
         # Ensure services are running
         systemctl --user start aktags-daemon 2>/dev/null || true
         systemctl --user start noctalia-gtk 2>/dev/null || true
+        systemctl --user start ollama 2>/dev/null || true
     fi
 
     echo ""
+    # Kill the status box if still running
+    if [[ -n "$ZENITY_PID" ]] && kill -0 "$ZENITY_PID" 2>/dev/null; then
+        kill "$ZENITY_PID" 2>/dev/null || true
+    fi
+
     if [[ $errors -gt 0 ]]; then
         ok "blueak-init complete with $errors error(s) — see ~/.local/share/blueak/init.log"
         show_error "BlueAK Setup Complete" "BlueAK setup finished with $errors error(s).\nCheck ~/.local/share/blueak/init.log for details."
