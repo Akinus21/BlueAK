@@ -18,7 +18,8 @@ RUN dnf install -y \
     ulauncher \
     alacritty \
     swaybg \
-    earlyoom && \
+    earlyoom \
+    libreoffice && \
     dnf install -y --setopt=install_weak_deps=False \
     noctalia-shell \
     matugen \
