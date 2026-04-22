@@ -109,7 +109,9 @@ RUN dnf install -y \
     npm
 
 # ── OpenCode CLI ───────────────────────────────────────────────────────────────
-RUN npm install -g opencode-ai
+# /usr/local is a file in the base image — clean it up before use
+RUN rm -rf /usr/local && mkdir -p /usr/local/bin && \
+    npm install -g opencode-ai
 
 RUN sed -i 's|^SHELL=.*|SHELL=/bin/zsh|' /etc/default/useradd 2>/dev/null || \
     echo 'SHELL=/bin/zsh' >> /etc/default/useradd
@@ -208,11 +210,10 @@ RUN rm -rf /usr/local && mkdir -p /usr/local/bin && \
     install -m 755 /tmp/blueak-init /usr/local/bin/blueak-init && \
     rm -f /tmp/blueak-init
 
-# Seed blueak-init systemd user service and autostart for new users
-RUN mkdir -p /etc/skel/.config/systemd/user /etc/skel/.config/autostart /etc/skel/.local/bin
+# Seed blueak-init systemd user service for new users (desktop autostart removed to prevent double-trigger)
+RUN mkdir -p /etc/skel/.config/systemd/user /etc/skel/.local/bin
 COPY config/systemd/blueak-init.service /etc/skel/.config/systemd/user/blueak-init.service
 COPY config/systemd/ollama.service /etc/skel/.config/systemd/user/ollama.service
-COPY config/blueak-init/blueak-init.desktop /etc/skel/.config/autostart/blueak-init.desktop
 COPY config/cac/cac-setup /etc/skel/.local/bin/cac-setup
 RUN chmod +x /etc/skel/.local/bin/cac-setup
 
