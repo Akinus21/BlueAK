@@ -19,7 +19,8 @@ RUN dnf install -y \
     alacritty \
     swaybg \
     earlyoom \
-    libreoffice && \
+    libreoffice \
+    ollama && \
     dnf install -y --setopt=install_weak_deps=False \
     noctalia-shell \
     matugen \
@@ -104,7 +105,11 @@ RUN dnf install -y \
     tesseract \
     tesseract-langpack-eng \
     poppler-utils \
-    odt2txt
+    odt2txt \
+    npm
+
+# ── OpenCode CLI ───────────────────────────────────────────────────────────────
+RUN npm install -g opencode-ai
 
 RUN sed -i 's|^SHELL=.*|SHELL=/bin/zsh|' /etc/default/useradd 2>/dev/null || \
     echo 'SHELL=/bin/zsh' >> /etc/default/useradd
