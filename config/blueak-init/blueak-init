@@ -289,12 +289,14 @@ main() {
         if ! require_brew; then
             warn "Homebrew not found — skipping brew packages"
         else
+            brew tap Akinus21/homebrew-tap 2>/dev/null || warn "brew: tap Akinus21/homebrew-tap failed"
             for pkg in lazygit git-delta gh gitleaks; do brew_ensure "$pkg"; done
             for pkg in atuin tmux tldr; do brew_ensure "$pkg"; done
             for pkg in jq yq xh; do brew_ensure "$pkg"; done
             for pkg in trivy grype; do brew_ensure "$pkg"; done
             for pkg in yazi duf dust age; do brew_ensure "$pkg"; done
             brew_ensure "font-meslo-lg-nerd-font" --cask
+            brew_ensure "aktools"
         fi
 
         # ── 5. Flatpak ───────────────────────────────────────────────────────
