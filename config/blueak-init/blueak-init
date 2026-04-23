@@ -100,7 +100,7 @@ brew_ensure() {
     fi
 }
 
-# ── Runtime binary installer (for AkTags and Noctalia-gtk) ───────────────────
+# ── Runtime binary installer (for AkTags) ────────────────────────────────
 install_binary() {
     local name="$1"
     local url="$2"
@@ -142,21 +142,7 @@ install_aktags() {
     install_binary "AkTags" "$url" "$HOME/.local/bin/aktags" "755"
 }
 
-# ── Noctalia-gtk runtime install ─────────────────────────────────────────────
-install_noctalia_gtk() {
-    local NOCTALIA_TAG
-    NOCTALIA_TAG=$(curl -fsSL https://api.github.com/repos/Akinus21/Noctalia-gtk/releases/latest 2>/dev/null \
-        | grep '"tag_name"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/' || echo "")
-    if [[ -z "$NOCTALIA_TAG" ]]; then
-        warn "Noctalia-gtk: could not fetch latest release tag"
-        return 1
-    fi
-    # Noctalia-gtk binary name is "noctalia-gtk" (from workflow upload)
-    local url="https://github.com/Akinus21/Noctalia-gtk/releases/download/${NOCTALIA_TAG}/noctalia-gtk"
-    install_binary "Noctalia-gtk" "$url" "$HOME/.local/bin/noctalia-gtk" "755"
-}
-
-# ── Fix broken systemd services ─────────────────────────────────────────────
+# ── Noctalia color schemes ─────────────────────────────────────────────────
 fix_service() {
     local svc="$1"
     local bin_path="$2"
@@ -210,15 +196,8 @@ main() {
         fi
         xdg-mime default aktags.desktop inode/directory 2>/dev/null || true
 
-        # ── 2. Noctalia-gtk ──────────────────────────────────────────────────
-        log "--- Noctalia GTK ---"
-        if ! install_noctalia_gtk; then
-            ((errors++))
-            warn "Noctalia-gtk: install failed — will retry on next login"
-        fi
-        ln -sf "$HOME/.local/bin/noctalia-gtk" "$HOME/.local/bin/noctalia-gtk" 2>/dev/null || true
-        skel_copy ".config/systemd/user/noctalia-gtk.service"
-        skel_copy ".config/noctalia/settings.json"
+        # ── 2. Noctalia color schemes ────────────────────────────────────────────
+        log "--- Noctalia color schemes ---"
         mkdir -p "$HOME/.config/noctalia"
         for scheme_src in /etc/skel/.config/noctalia/*.json; do
             if [[ -f "$scheme_src" ]]; then
@@ -228,16 +207,13 @@ main() {
                     cp "$scheme_src" "$HOME/.config/noctalia/$scheme_name" \
                         && ok "Noctalia: scheme $scheme_name seeded" \
                         || warn "Noctalia: failed to seed scheme $scheme_name"
+                else
+                    ok "Noctalia: scheme $scheme_name (up to date)"
                 fi
             fi
         done
-        systemctl --user daemon-reload 2>/dev/null || true
-        if ! systemctl --user enable --now noctalia-gtk 2>/dev/null; then
-            ((errors++))
-            warn "Noctalia-gtk: failed to start"
-        else
-            ok "Noctalia-gtk: enabled"
-        fi
+        # Noctalia launched via niri spawn-at-startup (qs -c noctalia-shell)
+        # No systemd service needed
 
         # ── 3. Nyxt ─────────────────────────────────────────────────────────
         log "--- Nyxt ---"
@@ -351,13 +327,12 @@ main() {
         log "BlueAK: checking services..."
 
         fix_service "aktags-daemon" "$HOME/.local/bin/aktags"
-        fix_service "noctalia-gtk" "$HOME/.local/bin/noctalia-gtk"
         fix_service "ollama" "/usr/bin/ollama"
 
         # Ensure services are running
         systemctl --user start aktags-daemon 2>/dev/null || true
-        systemctl --user start noctalia-gtk 2>/dev/null || true
         systemctl --user start ollama 2>/dev/null || true
+        # Noctalia launched via niri spawn-at-startup, not systemd
     fi
 
     echo ""
