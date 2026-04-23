@@ -212,8 +212,13 @@ main() {
                 fi
             fi
         done
-        # Noctalia launched via niri spawn-at-startup (qs -c noctalia-shell)
-        # No systemd service needed
+        skel_copy ".config/systemd/user/noctalia-gtk.service"
+        systemctl --user daemon-reload 2>/dev/null || true
+        if ! systemctl --user enable --now noctalia-gtk 2>/dev/null; then
+            warn "Noctalia-gtk: failed to start"
+        else
+            ok "Noctalia-gtk: enabled"
+        fi
 
         # ── 3. Nyxt ─────────────────────────────────────────────────────────
         log "--- Nyxt ---"
@@ -327,12 +332,13 @@ main() {
         log "BlueAK: checking services..."
 
         fix_service "aktags-daemon" "$HOME/.local/bin/aktags"
+        fix_service "noctalia-gtk" "/usr/local/bin/noctalia-gtk"
         fix_service "ollama" "/usr/bin/ollama"
 
         # Ensure services are running
         systemctl --user start aktags-daemon 2>/dev/null || true
+        systemctl --user start noctalia-gtk 2>/dev/null || true
         systemctl --user start ollama 2>/dev/null || true
-        # Noctalia launched via niri spawn-at-startup, not systemd
     fi
 
     echo ""
