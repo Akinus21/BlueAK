@@ -14,6 +14,7 @@ input {
 
 // Autostart
 spawn-at-startup "ulauncher" "--hide-window"
+spawn-at-startup "qs" "-c" "noctalia-shell"
 
 window-rule {
     // Rounded corners for a modern look

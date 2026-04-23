@@ -23,6 +23,11 @@ RUN dnf install -y \
     okular \
     ollama
 
+# Noctalia Shell — via Terra repo (Fyra Labs)
+# https://docs.noctalia.dev/getting-started/installation
+RUN dnf install -y --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release && \
+    dnf install -y noctalia-shell || echo "Terra repo unavailable — install noctalia-shell at runtime"
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 3. CAC smart card support
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
