@@ -137,13 +137,13 @@ flatpak remote-add --user --if-not-exists flathub \
     && ok "flathub remote present" \
     || warn "flathub remote-add failed"
 
-if ! flatpak list --user --app 2>/dev/null | grep -q "com.1password.1Password"; then
-    log "Installing 1Password..."
-    flatpak install --user -y flathub com.1password.1Password 2>/dev/null \
-        && ok "1Password installed" \
-        || warn "1Password install failed (non-fatal)"
+if ! flatpak list --user --app 2>/dev/null | grep -q "com.bitwarden.desktop"; then
+    log "Installing Bitwarden..."
+    flatpak install --user -y flathub com.bitwarden.desktop 2>/dev/null \
+        && ok "Bitwarden installed" \
+        || warn "Bitwarden install failed (non-fatal)"
 else
-    ok "1Password present"
+    ok "Bitwarden present"
 fi
 
 ########################################

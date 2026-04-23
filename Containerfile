@@ -73,15 +73,9 @@ RUN DOD_CERT_URL="https://dl.dod.cyber.mil/wp-content/uploads/pki-pke/zip/unclas
     rm -rf /tmp/dod_certs
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 5. 1Password CLI
+# 5. Bitwarden CLI
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RUN rpm --import https://downloads.1password.com/linux/keys/1password.asc && \
-    printf '[1password]\nname=1Password Stable Channel\nbaseurl=https://downloads.1password.com/linux/rpm/stable/x86_64\nenabled=1\ngpgcheck=1\ngpgkey=https://downloads.1password.com/linux/keys/1password.asc\n' \
-    > /etc/yum.repos.d/1password.repo
-
-RUN dnf install -y 1password-cli
-# NOTE: 1Password GUI installed as Flatpak post-boot:
-#   flatpak install flathub com.onepassword.1Password
+RUN npm install -g @bitwarden/cli
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 6. Zsh + shell tooling + Python + OCR deps
