@@ -73,11 +73,6 @@ RUN DOD_CERT_URL="https://dl.dod.cyber.mil/wp-content/uploads/pki-pke/zip/unclas
     rm -rf /tmp/dod_certs
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 5. Bitwarden CLI
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RUN npm install -g @bitwarden/cli
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 6. Zsh + shell tooling + Python + OCR deps
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RUN dnf install -y \
@@ -103,10 +98,11 @@ RUN dnf install -y \
     npm
 
 # ── OpenCode CLI ───────────────────────────────────────────────────────────────
+# ── Bitwarden CLI ──────────────────────────────────────────────────────────────
 # /usr/local is a file in the base image — clean it up before use
-# HOME=/root is also a file in the base image — set HOME to /tmp for npm
+# HOME=/tmp needed since /root is also a file in the base image
 RUN rm -rf /usr/local && mkdir -p /usr/local/bin && \
-    HOME=/tmp npm install -g opencode-ai
+    HOME=/tmp npm install -g opencode-ai @bitwarden/cli
 
 RUN sed -i 's|^SHELL=.*|SHELL=/bin/zsh|' /etc/default/useradd 2>/dev/null || \
     echo 'SHELL=/bin/zsh' >> /etc/default/useradd
