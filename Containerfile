@@ -52,7 +52,7 @@ RUN if [ -f /etc/opensc/opensc.conf ]; then \
             /etc/opensc/opensc.conf; \
     fi
 
-RUN systemctl enable pcscd.socket
+RUN systemctl enable pcscd.service
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 4. Install DoD PKI CA certificates
