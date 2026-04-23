@@ -20,6 +20,7 @@ RUN dnf install -y \
     swaybg \
     earlyoom \
     libreoffice \
+    okular \
     ollama && \
     dnf install -y --setopt=install_weak_deps=False \
     noctalia-shell \

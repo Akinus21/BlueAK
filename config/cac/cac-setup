@@ -73,16 +73,37 @@ if command -v firefox &>/dev/null; then
     done
 fi
 
-# ── p11-kit system registration (for Chromium/Electron apps) ───────────────
+# ── p11-kit system registration (for Chromium/Electron apps + Okular) ───────
+OPENSCLIB=$(find /usr/lib64 -name "opensc-pkcs11.so" 2>/dev/null | head -1)
 if [[ -f "/etc/pkcs11/modules/opensc.module" ]]; then
     ok "OpenSC already in p11-kit"
-else
-    sudo tee /etc/pkcs11/modules/opensc.module > /dev/null << 'PKCS11CONF'
-module: /usr/lib64/pkcs11/opensc-pkcs11.so
+elif [[ -n "$OPENSCLIB" ]]; then
+    sudo tee /etc/pkcs11/modules/opensc.module > /dev/null << PKCS11CONF
+module: $OPENSCLIB
 critical: no
 PKCS11CONF
     ok "OpenSC registered in p11-kit"
 fi
+
+# ── Okular PDF signing — register PKCS#11 in KDE's KMS ───────────────────────
+OKULAR_PKCS11_LIB="${OPENSCLIB:-/usr/lib64/pkcs11/opensc-pkcs11.so}"
+KDE_GLOBALS="$HOME/.config/kdeglobals"
+mkdir -p "$(dirname "$KDE_GLOBALS")"
+
+if [[ -f "$KDE_GLOBALS" ]] && grep -q "pkcs11 module" "$KDE_GLOBALS" 2>/dev/null; then
+    ok "Okular PKCS#11 already configured"
+else
+    cat >> "$KDE_GLOBALS" 2>/dev/null << KDEPKCS11
+
+[Crypto]
+PKCS11Module=$OKULAR_PKCS11_LIB
+KDEPKCS11
+    ok "Okular PKCS#11 configured in kdeglobals"
+fi
+
+# Also configure Okular's own PKCS#11 settings via environment
+export CRYPTOGRAPHIC_MECHANISMS="RSA:DSA:ECDSA:SIGN_RSA:SIGN_DSA:SIGN_ECDSA"
+export PKCS11_MODULE_PATH="$OKULAR_PKCS11_LIB"
 
 # ── GnuPG scdaemon CCID disable ──────────────────────────────────────────────
 SCDAEMON_CONF="$HOME/.gnupg/scdaemon.conf"
