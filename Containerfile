@@ -146,9 +146,10 @@ RUN systemctl enable bootc-nightly-reboot.timer
 # 10. Systemd user services + Noctalia color config
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# ── Noctalia-gtk binary — GTK theme color sync daemon ──────────────────────
-# v0.00.1 release has x86_64 binary; installed at runtime by blueak-init if missing
-COPY config/systemd/noctalia-gtk.service /etc/skel/.config/systemd/user/noctalia-gtk.service
+# Noctalia-gtk daemon — installed at runtime by blueak-init
+# Note: Noctalia is launched via niri spawn-at-startup (qs -c noctalia-shell),
+# NOT via systemd. The noctalia-gtk binary syncs GTK colors from Noctalia's
+# color scheme files.
 
 # ── AkTags — via Homebrew (Akinus21/homebrew-tap) ───────────────────────────
 # Binary installed via brew install on login
