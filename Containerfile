@@ -108,11 +108,13 @@ RUN rm -rf /usr/local && mkdir -p /usr/local/bin && \
 
 # ── Noctalia-gtk — GTK theme color sync daemon ─────────────────────────────
 # Build from source since pre-built binary requires glibc 2.39 (base has 2.36)
-RUN git clone --depth=1 https://github.com/Akinus21/Noctalia-gtk /tmp/noctalia-gtk-src && \
+# /root/.cargo doesn't exist in base image — set CARGO_HOME to /tmp
+RUN CARGO_HOME=/tmp CARGO_TARGET_DIR=/tmp/cargo-build \
+    git clone --depth=1 https://github.com/Akinus21/Noctalia-gtk /tmp/noctalia-gtk-src && \
     cd /tmp/noctalia-gtk-src && \
-    CARGO_TARGET_DIR=/tmp/cargo-build cargo build --release && \
+    CARGO_HOME=/tmp CARGO_TARGET_DIR=/tmp/cargo-build cargo build --release && \
     install -m 755 /tmp/cargo-build/release/noctalia-gtk /usr/local/bin/noctalia-gtk && \
-    rm -rf /tmp/noctalia-gtk-src /tmp/cargo-build
+    rm -rf /tmp/noctalia-gtk-src /tmp/cargo-build /tmp/cargo-home
 
 RUN sed -i 's|^SHELL=.*|SHELL=/bin/zsh|' /etc/default/useradd 2>/dev/null || \
     echo 'SHELL=/bin/zsh' >> /etc/default/useradd
