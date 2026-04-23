@@ -43,15 +43,7 @@ alias cat='bat --style=auto'
 export EDITOR='nvim'
 export VISUAL='nvim'
 
-# 1Password CLI shell integration
-if command -v op &>/dev/null; then
-  eval "$(op completion zsh)"; compdef _op op
-fi
-
-# aktools secrets (OP_SERVICE_ACCOUNT_TOKEN lives here, not in .zshrc)
-[[ -f "$HOME/.config/aktools/secrets" ]] && source "$HOME/.config/aktools/secrets"
-
-# aktools aliases
+# aktools aliases (installed via Homebrew)
 [[ -f "$HOME/.aktools/aliases.sh" ]] && source "$HOME/.aktools/aliases.sh"
 
 # Powerlevel10k config
