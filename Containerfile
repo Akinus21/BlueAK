@@ -145,16 +145,14 @@ RUN systemctl enable bootc-nightly-reboot.timer
 # 10. Systemd user services + Noctalia color config
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# ── AkTags systemd user service ───────────────────────────────────────────────
-# Binary installed via Homebrew on login (Akinus21/homebrew-tap)
-COPY config/systemd/aktags-daemon.service /etc/skel/.config/systemd/user/aktags-daemon.service
-
-# ── AkTags desktop entry for autostart ─────────────────────────────────────────
-COPY config/aktags/aktags.desktop /etc/skel/.config/autostart/aktags.desktop
-
-# ── Noctalia-gtk systemd user service + color config ───────────────────────────
-# Binary installed via Homebrew on login (Akinus21/homebrew-tap)
+# ── Noctalia-gtk binary — GTK theme color sync daemon ──────────────────────
+# v0.00.1 release has x86_64 binary; installed at runtime by blueak-init if missing
 COPY config/systemd/noctalia-gtk.service /etc/skel/.config/systemd/user/noctalia-gtk.service
+
+# ── AkTags — via Homebrew (Akinus21/homebrew-tap) ───────────────────────────
+# Binary installed via brew install on login
+COPY config/systemd/aktags-daemon.service /etc/skel/.config/systemd/user/aktags-daemon.service
+COPY config/aktags/aktags.desktop /etc/skel/.config/autostart/aktags.desktop
 
 # ── Noctalia color config seed ────────────────────────────────────────────────
 RUN mkdir -p /etc/skel/.config/noctalia
