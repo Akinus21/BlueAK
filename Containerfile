@@ -21,11 +21,7 @@ RUN dnf install -y \
     earlyoom \
     libreoffice \
     okular \
-    ollama && \
-    dnf install -y --setopt=install_weak_deps=False \
-    noctalia-shell \
-    matugen \
-    || echo "Terra repo packages not available at build time — will be installed at runtime"
+    ollama
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 3. CAC smart card support
