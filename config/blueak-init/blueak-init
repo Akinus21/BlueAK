@@ -303,6 +303,7 @@ main() {
             for pkg in trivy grype; do brew_ensure "$pkg"; done
             for pkg in yazi duf dust age; do brew_ensure "$pkg"; done
             brew_ensure "aktags"
+            brew_ensure "bitwarden-cli"
             brew_ensure "font-meslo-lg-nerd-font" --cask
             brew_ensure "aktools"
         fi
