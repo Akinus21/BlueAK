@@ -12,8 +12,8 @@ All notable changes to BlueAK are documented here.
 - **nyxt.desktop wrong Exec path** — changed from `/usr/bin/nyxt` to `flatpak run org.nyxt.Nyxt`
 
 ### Changed
+- **Noctalia built-in GTK theming** — removed noctalia-gtk daemon; Noctalia handles GTK theme sync internally
 - **Purple Haze as default Noctalia theme** — `colors.json` now seeds with Purple Haze flat colors; `colorschemes/purple-haze/` added with nested dark/light format for GUI picker
-- **noctalia-gtk** — now downloaded from GitHub releases (`Akinus21/Noctalia-gtk`) instead of built from source
 - **Nyxt** — replaced GitHub AppImage with flatpak (`org.nyxt.Nyxt`) with filesystem overrides for GTK theme and CAC access
 
 ### Added

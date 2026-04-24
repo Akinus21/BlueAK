@@ -75,11 +75,9 @@ RUN DOD_CERT_URL="https://dl.dod.cyber.mil/wp-content/uploads/pki-pke/zip/unclas
     rm -rf /tmp/dod_certs
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 6. Rust + Zsh + shell tooling + Python + OCR deps
-# (Rust needed to build noctalia-gtk from source)
+# 6. Zsh + shell tooling + Python + OCR deps
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RUN dnf install -y rust cargo && \
-    dnf install -y \
+RUN dnf install -y \
     zsh \
     zsh-autosuggestions \
     zsh-syntax-highlighting \
@@ -106,16 +104,6 @@ RUN dnf install -y rust cargo && \
 # HOME=/tmp needed since /root is also a file in the base image
 RUN rm -rf /usr/local && mkdir -p /usr/local/bin && \
     HOME=/tmp npm install -g opencode-ai
-
-# ── Noctalia-gtk — GTK theme color sync daemon ─────────────────────────────
-# Download pre-built binary from GitHub releases
-RUN NOCT_TAG=$(curl -fsSL https://api.github.com/repos/Akinus21/Noctalia-gtk/releases/latest \
-    | grep '"tag_name"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/') && \
-    curl -fsSL "https://github.com/Akinus21/Noctalia-gtk/releases/download/${NOCT_TAG}/noctalia-gtk" \
-    -o /tmp/noctalia-gtk && \
-    rm -rf /usr/local && mkdir -p /usr/local/bin && \
-    install -m 755 /tmp/noctalia-gtk /usr/local/bin/noctalia-gtk && \
-    rm -f /tmp/noctalia-gtk
 
 RUN sed -i 's|^SHELL=.*|SHELL=/bin/zsh|' /etc/default/useradd 2>/dev/null || \
     echo 'SHELL=/bin/zsh' >> /etc/default/useradd
@@ -158,10 +146,6 @@ RUN systemctl enable bootc-nightly-reboot.timer
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 10. Systemd user services + Noctalia color config
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-# ── Noctalia-gtk systemd service + color config ─────────────────────────────
-# noctalia-gtk is built from source in this image (pre-built requires glibc 2.39)
-COPY config/systemd/noctalia-gtk.service /etc/skel/.config/systemd/user/noctalia-gtk.service
 
 # ── AkTags — via Homebrew (Akinus21/homebrew-tap) ───────────────────────────
 # Binary installed via brew install on login

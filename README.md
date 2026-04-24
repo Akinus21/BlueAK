@@ -79,7 +79,7 @@ On first login, `blueak-init` (triggered via systemd user service) runs:
 
 1. Seeds Noctalia color schemes to `~/.config/noctalia/`
 2. Installs Nyxt flatpak with CAC/filesystem overrides
-3. Enables AkTags daemon, Ollama, noctalia-gtk
+3. Enables AkTags daemon, Ollama
 4. Installs Homebrew packages
 5. Runs CAC smart card setup
 6. Sets default Nyxt theme (synced to Noctalia)
