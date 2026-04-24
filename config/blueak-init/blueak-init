@@ -198,18 +198,27 @@ main() {
 
         # ── 2. Noctalia color schemes ────────────────────────────────────────────
         log "--- Noctalia color schemes ---"
-        mkdir -p "$HOME/.config/noctalia"
-        for scheme_src in /etc/skel/.config/noctalia/*.json; do
-            if [[ -f "$scheme_src" ]]; then
-                scheme_name=$(basename "$scheme_src")
-                if [[ ! -f "$HOME/.config/noctalia/$scheme_name" ]] || \
-                   ! cmp -s "$scheme_src" "$HOME/.config/noctalia/$scheme_name" 2>/dev/null; then
-                    cp "$scheme_src" "$HOME/.config/noctalia/$scheme_name" \
-                        && ok "Noctalia: scheme $scheme_name seeded" \
-                        || warn "Noctalia: failed to seed scheme $scheme_name"
-                else
-                    ok "Noctalia: scheme $scheme_name (up to date)"
-                fi
+        mkdir -p "$HOME/.config/noctalia/colorschemes"
+
+        # Copy flat colors.json (active theme seed)
+        if [[ -f /etc/skel/.config/noctalia/colors.json ]]; then
+            cp /etc/skel/.config/noctalia/colors.json "$HOME/.config/noctalia/colors.json" \
+                && ok "Noctalia: colors.json seeded" \
+                || warn "Noctalia: failed to seed colors.json"
+        fi
+
+        # Copy nested color schemes to colorschemes/ directory
+        for scheme_dir in /etc/skel/.config/noctalia/colorschemes/*/; do
+            if [[ -d "$scheme_dir" ]]; then
+                scheme_name=$(basename "$scheme_dir")
+                mkdir -p "$HOME/.config/noctalia/colorschemes/$scheme_name"
+                for scheme_file in "$scheme_dir"*.json; do
+                    if [[ -f "$scheme_file" ]]; then
+                        cp "$scheme_file" "$HOME/.config/noctalia/colorschemes/$scheme_name/" \
+                            && ok "Noctalia: scheme $scheme_name seeded" \
+                            || warn "Noctalia: failed to seed scheme $scheme_name"
+                    fi
+                done
             fi
         done
         skel_copy ".config/systemd/user/noctalia-gtk.service"
