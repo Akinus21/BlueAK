@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Nyxt Browser
 Comment=REST-free web browser
-Exec=/usr/bin/nyxt %u
+Exec=flatpak run org.nyxt.Nyxt %u
 Icon=org.nyxt.Nyxt
 Terminal=false
 Type=Application
