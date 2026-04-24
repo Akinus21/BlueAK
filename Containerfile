@@ -108,14 +108,14 @@ RUN rm -rf /usr/local && mkdir -p /usr/local/bin && \
     HOME=/tmp npm install -g opencode-ai
 
 # ── Noctalia-gtk — GTK theme color sync daemon ─────────────────────────────
-# Build from source since pre-built binary requires glibc 2.39 (base has 2.36)
-# /root/.cargo doesn't exist in base image — set CARGO_HOME to /tmp
-RUN CARGO_HOME=/tmp CARGO_TARGET_DIR=/tmp/cargo-build \
-    git clone --depth=1 https://github.com/Akinus21/Noctalia-gtk /tmp/noctalia-gtk-src && \
-    cd /tmp/noctalia-gtk-src && \
-    CARGO_HOME=/tmp CARGO_TARGET_DIR=/tmp/cargo-build cargo build --release && \
-    install -m 755 /tmp/cargo-build/release/noctalia-gtk /usr/local/bin/noctalia-gtk && \
-    rm -rf /tmp/noctalia-gtk-src /tmp/cargo-build /tmp/cargo-home
+# Download pre-built binary from GitHub releases
+RUN NOCT_TAG=$(curl -fsSL https://api.github.com/repos/Akinus21/Noctalia-gtk/releases/latest \
+    | grep '"tag_name"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/') && \
+    curl -fsSL "https://github.com/Akinus21/Noctalia-gtk/releases/download/${NOCT_TAG}/noctalia-gtk" \
+    -o /tmp/noctalia-gtk && \
+    rm -rf /usr/local && mkdir -p /usr/local/bin && \
+    install -m 755 /tmp/noctalia-gtk /usr/local/bin/noctalia-gtk && \
+    rm -f /tmp/noctalia-gtk
 
 RUN sed -i 's|^SHELL=.*|SHELL=/bin/zsh|' /etc/default/useradd 2>/dev/null || \
     echo 'SHELL=/bin/zsh' >> /etc/default/useradd
@@ -220,15 +220,21 @@ COPY config/nyxt/themes/       /etc/skel/.config/nyxt/themes/
 COPY config/nyxt/set-nyxt-theme /etc/skel/.local/bin/set-nyxt-theme
 RUN chmod +x /etc/skel/.local/bin/set-nyxt-theme
 
-# ── Nyxt — GitHub release tarball ──────────────────────────────────────────────
-RUN NYXT_VERSION=$(curl -fsSL https://api.github.com/repos/atlas-engineer/nyxt/releases/latest \
-      | grep '"tag_name"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/') && \
-    curl -fsSL \
-      "https://github.com/atlas-engineer/nyxt/releases/download/${NYXT_VERSION}/Linux-Nyxt-x86_64.tar.gz" \
-      -o /tmp/nyxt.tar.gz && \
-    tar xzf /tmp/nyxt.tar.gz -C /tmp && \
-    install -m 755 -D /tmp/Nyxt-x86_64.AppImage /usr/bin/nyxt && \
-    rm -f /tmp/nyxt.tar.gz
+# ── Nyxt — Flatpak (with theming + CAC access overrides) ───────────────────
+# Install as flatpak, override filesystem access for ~/.config/gtk-3.0 and ~/.config/gtk-4.0
+# Also override shared-memory-info for CAC card access, xdg-config for themes
+RUN flatpak install -y flathub org.nyxt.Nyxt && \
+    flatpak override org.nyxt.Nyxt \
+        --filesystem=home/.config/gtk-3.0:ro \
+        --filesystem=home/.config/gtk-4.0:ro \
+        --filesystem=home/.config/noctalia:ro \
+        --filesystem=xdg-config/gtk-3.0:ro \
+        --filesystem=xdg-config/gtk-4.0:ro \
+        --filesystem=xdg-config/KDEGlobals:rw \
+        --device=all \
+        --talk-name=org.freedesktop.secrets \
+        --talk-name=org.freedesktop.Notifications \
+        --env=LIBSEAL_BAD=1 2>/dev/null || true
 
 # ── Nyxt — .desktop entry + MIME types ──────────────────────────────────────
 COPY config/nyxt/nyxt.desktop /usr/share/applications/nyxt.desktop
