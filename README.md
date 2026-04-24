@@ -1,6 +1,6 @@
 # BlueAK
 
-A Universal Blue bootc image template that builds an OCI image and bootable disk images (ISO, qcow2, raw). Based on [Bazzite](https://github.com/ublue-os/bazzite), it provides a refined desktop experience with the [Noctalia shell](https://noctalia.dev), [Nyxt](https://nyxt.atlascode.dev) browser, and the "Eldritch" dark theme.
+A Universal Blue bootc image template that builds an OCI image and bootable disk images (ISO, qcow2, raw). Based on [Bluefin](https://projectbluefin.io/), it provides a refined keyboard-centric desktop experience with the [Niri](https://github.com/niri-wm/niri) compositor, [Noctalia shell](https://noctalia.dev), [Nyxt](https://nyxt.atlascode.dev) browser. 
 
 ## What It Includes
 
@@ -10,7 +10,7 @@ A Universal Blue bootc image template that builds an OCI image and bootable disk
 - **Ollama** — local LLM server (user systemd service)
 - **AkTags** — tag-based file browser
 - **Homebrew** — curated CLI packages (git-delta, gh, atuin, yazi, trivy, etc.)
-- **Eldritch Theme** — unified dark color palette across GTK3/4, Nyxt, terminal, and Noctalia
+- **Custom Theme** — unified dark color palette for Noctalia and supported applications
 
 ## Building
 
