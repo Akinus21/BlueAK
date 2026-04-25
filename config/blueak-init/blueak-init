@@ -240,29 +240,27 @@ main() {
 
         # ── 3. Nyxt ─────────────────────────────────────────────────────────
         log "--- Nyxt ---"
-        log "Nyxt: installing flatpak..."
-        if flatpak list --user --app 2>/dev/null | grep -q "org.nyxt.Nyxt"; then
-            log "Nyxt: removing old flatpak install..."
-            flatpak uninstall --user -y org.nyxt.Nyxt 2>/dev/null \
-                && ok "Nyxt: flatpak removed" \
-                || warn "Nyxt: flatpak removal failed"
+        if ! flatpak list --user --app 2>/dev/null | grep -q "org.nyxt.Nyxt"; then
+            log "Nyxt: installing flatpak..."
+            flatpak install --user -y flathub org.nyxt.Nyxt 2>/dev/null \
+                && ok "Nyxt: flatpak installed" \
+                || warn "Nyxt: flatpak install failed"
+            flatpak override org.nyxt.Nyxt \
+                --filesystem=home/.config/gtk-3.0:ro \
+                --filesystem=home/.config/gtk-4.0:ro \
+                --filesystem=home/.config/noctalia:ro \
+                --filesystem=xdg-config/gtk-3.0:ro \
+                --filesystem=xdg-config/gtk-4.0:ro \
+                --filesystem=xdg-config/KDEGlobals:rw \
+                --device=all \
+                --talk-name=org.freedesktop.secrets \
+                --talk-name=org.freedesktop.Notifications \
+                --env=LIBSEAL_BAD=1 2>/dev/null \
+                && ok "Nyxt: flatpak overrides applied" \
+                || warn "Nyxt: flatpak override failed"
+        else
+            ok "Nyxt: flatpak present"
         fi
-        flatpak install --user -y flathub org.nyxt.Nyxt 2>/dev/null \
-            && ok "Nyxt: flatpak installed" \
-            || warn "Nyxt: flatpak install failed"
-        flatpak override org.nyxt.Nyxt \
-            --filesystem=home/.config/gtk-3.0:ro \
-            --filesystem=home/.config/gtk-4.0:ro \
-            --filesystem=home/.config/noctalia:ro \
-            --filesystem=xdg-config/gtk-3.0:ro \
-            --filesystem=xdg-config/gtk-4.0:ro \
-            --filesystem=xdg-config/KDEGlobals:rw \
-            --device=all \
-            --talk-name=org.freedesktop.secrets \
-            --talk-name=org.freedesktop.Notifications \
-            --env=LIBSEAL_BAD=1 2>/dev/null \
-            && ok "Nyxt: flatpak overrides applied" \
-            || warn "Nyxt: flatpak override failed"
         skel_copy ".config/nyxt/config.lisp"
         THEMES_DIR="$HOME/.config/nyxt/themes"
         mkdir -p "$THEMES_DIR"
