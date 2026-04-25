@@ -5,8 +5,10 @@ PartOf=graphical-session.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/blueak-init
+ExecStart=/bin/bash -c 'PATH="$PATH:/usr/local/bin" exec /usr/local/bin/blueak-init'
 RemainAfterExit=yes
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=HOME=/var/home/gabriel
 Environment=DISPLAY=:0
 Environment=XDG_CURRENT_DESKTOP=GNOME
 Environment=XDG_SESSION_TYPE=wayland
