@@ -170,6 +170,22 @@ main() {
 
         log "BlueAK first-run: starting setup..."
 
+        # Cleanup: remove old noctalia-gtk service if present
+        if systemctl --user is-enabled noctalia-gtk 2>/dev/null; then
+            systemctl --user disable --now noctalia-gtk 2>/dev/null || true
+            warn "System: old noctalia-gtk service disabled"
+        fi
+
+        # Cleanup: remove old noctalia-gtk service file
+        if [[ -f "$HOME/.config/systemd/user/noctalia-gtk.service" ]]; then
+            rm -f "$HOME/.config/systemd/user/noctalia-gtk.service" || true
+            warn "System: old noctalia-gtk.service removed"
+        fi
+
+        # Reload systemd after cleanup
+        systemctl --user daemon-reload 2>/dev/null || true
+        systemctl --user reset-failed 2>/dev/null || true
+
         # Show status box during first-run setup
         if require_zenity; then
             zenity --info --title="BlueAK Setup" --text="Setting up BlueAK...\n\nThis window will close when complete." --no-wrap --width=400 &
@@ -349,6 +365,17 @@ main() {
     else
         # ── Subsequent runs: fix broken services silently ─────────────────
         log "BlueAK: checking services..."
+
+        # Cleanup old noctalia-gtk service if still present
+        if systemctl --user is-enabled noctalia-gtk 2>/dev/null; then
+            systemctl --user disable --now noctalia-gtk 2>/dev/null || true
+            warn "System: old noctalia-gtk service disabled"
+        fi
+
+        if [[ -f "$HOME/.config/systemd/user/noctalia-gtk.service" ]]; then
+            rm -f "$HOME/.config/systemd/user/noctalia-gtk.service" || true
+            warn "System: old noctalia-gtk.service removed"
+        fi
 
         fix_service "aktags-daemon" "$HOME/.local/bin/aktags"
         fix_service "ollama" "/usr/bin/ollama"
