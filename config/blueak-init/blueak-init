@@ -207,6 +207,7 @@ main() {
             warn "AkTags: install failed — will retry on next login"
         fi
         mkdir -p "$HOME/.config/systemd/user" "$HOME/.local/bin" "$HOME/.config/autostart"
+        skel_copy ".config/systemd/user/blueak-init.service"
         ln -sf "$HOME/.local/bin/aktags" "$HOME/.local/bin/aktags" 2>/dev/null || true
         skel_copy ".config/systemd/user/aktags-daemon.service"
         skel_copy ".config/autostart/aktags.desktop"
