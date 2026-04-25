@@ -182,6 +182,13 @@ main() {
             warn "System: old noctalia-gtk.service removed"
         fi
 
+        # Enable blueak-init service if not already enabled
+        if ! systemctl --user is-enabled blueak-init 2>/dev/null; then
+            systemctl --user enable blueak-init 2>/dev/null \
+                && ok "System: blueak-init.service enabled" \
+                || warn "System: blueak-init enable failed"
+        fi
+
         # Reload systemd after cleanup
         systemctl --user daemon-reload 2>/dev/null || true
         systemctl --user reset-failed 2>/dev/null || true
@@ -383,6 +390,13 @@ main() {
         if [[ -f "$HOME/.config/systemd/user/noctalia-gtk.service" ]]; then
             rm -f "$HOME/.config/systemd/user/noctalia-gtk.service" || true
             warn "System: old noctalia-gtk.service removed"
+        fi
+
+        # Enable blueak-init service if not already enabled
+        if ! systemctl --user is-enabled blueak-init 2>/dev/null; then
+            systemctl --user enable blueak-init 2>/dev/null \
+                && ok "System: blueak-init.service enabled" \
+                || warn "System: blueak-init enable failed"
         fi
 
         fix_service "aktags-daemon" "$HOME/.local/bin/aktags"
