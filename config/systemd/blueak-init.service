@@ -5,10 +5,10 @@ PartOf=graphical-session.target
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash -c 'PATH="$PATH:/usr/local/bin" exec /usr/local/bin/blueak-init'
+ExecStartPre=/bin/bash -c 'echo "$(date): blueak-init.service starting" >> /tmp/blueak-debug.log'
+ExecStart=/bin/bash -c 'echo "$(date): calling blueak-init" >> /tmp/blueak-debug.log; PATH="/usr/local/bin:$PATH" exec /usr/local/bin/blueak-init'
 RemainAfterExit=yes
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
-Environment=HOME=/var/home/gabriel
 Environment=DISPLAY=:0
 Environment=XDG_CURRENT_DESKTOP=GNOME
 Environment=XDG_SESSION_TYPE=wayland

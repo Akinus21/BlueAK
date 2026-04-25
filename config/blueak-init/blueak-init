@@ -208,6 +208,16 @@ main() {
         fi
         mkdir -p "$HOME/.config/systemd/user" "$HOME/.local/bin" "$HOME/.config/autostart"
         skel_copy ".config/systemd/user/blueak-init.service"
+
+        # Fallback: if skel_copy didn't work, copy directly
+        if [[ -f /etc/skel/.config/systemd/user/blueak-init.service ]] && \
+           [[ ! -f "$HOME/.config/systemd/user/blueak-init.service" ]]; then
+            cp /etc/skel/.config/systemd/user/blueak-init.service \
+               "$HOME/.config/systemd/user/blueak-init.service" \
+               && ok "System: blueak-init.service copied to user dir" \
+               || warn "System: failed to copy blueak-init.service"
+        fi
+
         ln -sf "$HOME/.local/bin/aktags" "$HOME/.local/bin/aktags" 2>/dev/null || true
         skel_copy ".config/systemd/user/aktags-daemon.service"
         skel_copy ".config/autostart/aktags.desktop"
