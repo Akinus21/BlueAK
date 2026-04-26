@@ -5,7 +5,7 @@ PartOf=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/ollama serve
+ExecStart=/usr/local/bin/ollama serve
 Restart=on-failure
 RestartSec=10
 
