@@ -258,12 +258,12 @@ main() {
 
         # ── 3. Nyxt ─────────────────────────────────────────────────────────
         log "--- Nyxt ---"
-        if ! flatpak list --user --app 2>/dev/null | grep -q "org.nyxt.Nyxt"; then
+        if ! flatpak list --user --app 2>/dev/null | grep -q "engineer.atlas.Nyxt"; then
             log "Nyxt: installing flatpak..."
-            flatpak install --user -y flathub org.nyxt.Nyxt 2>&1 \
+            flatpak install --user -y flathub engineer.atlas.Nyxt 2>&1 \
                 && ok "Nyxt: flatpak installed" \
-                || { warn "Nyxt: flatpak install failed"; flatpak install --user -y flathub org.nyxt.Nyxt 2>&1 || warn "Nyxt: retry also failed"; }
-            flatpak override org.nyxt.Nyxt \
+                || { warn "Nyxt: flatpak install failed"; flatpak install --user -y flathub engineer.atlas.Nyxt 2>&1 || warn "Nyxt: retry also failed"; }
+            flatpak override engineer.atlas.Nyxt \
                 --filesystem=home/.config/gtk-3.0:ro \
                 --filesystem=home/.config/gtk-4.0:ro \
                 --filesystem=home/.config/noctalia:ro \

@@ -207,8 +207,8 @@ RUN chmod +x /etc/skel/.local/bin/set-nyxt-theme
 # ── Nyxt — Flatpak (with theming + CAC access overrides) ───────────────────
 # Install as flatpak, override filesystem access for ~/.config/gtk-3.0 and ~/.config/gtk-4.0
 # Also override shared-memory-info for CAC card access, xdg-config for themes
-RUN flatpak install -y flathub org.nyxt.Nyxt && \
-    flatpak override org.nyxt.Nyxt \
+RUN flatpak install -y flathub engineer.atlas.Nyxt && \
+    flatpak override engineer.atlas.Nyxt \
         --filesystem=home/.config/gtk-3.0:ro \
         --filesystem=home/.config/gtk-4.0:ro \
         --filesystem=home/.config/noctalia:ro \
