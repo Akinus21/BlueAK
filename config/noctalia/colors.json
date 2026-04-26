@@ -10,7 +10,7 @@
   "mSurfaceVariant": "#2d2250",
   "mOnSurfaceVariant": "#e0d9f5",
   "mOutline": "#8b5cf6",
-  "mAccent": "#00d4ff",
+  "mAccent": "#50fa7b",
   "mOnAccent": "#150d26",
   "mSuccess": "#50fa7b",
   "mOnSuccess": "#150d26",
@@ -18,7 +18,7 @@
   "mOnWarning": "#150d26",
   "mError": "#ff5555",
   "mOnError": "#150d26",
-  "mHighlight": "#00d4ff",
+  "mHighlight": "#50fa7b",
   "mOnHighlight": "#150d26",
   "mCode": "#a78bfa"
 }
