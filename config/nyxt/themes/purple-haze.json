@@ -1,15 +1,15 @@
 {
   "name": "Purple Haze",
-  "description": "Deep violet with vibrant green accents",
+  "description": "Deep purple with vibrant green accents",
   "colors": {
-    "background": "#150d26",
+    "background": "#281931",
     "foreground": "#e0d9f5",
-    "primary": "#1f1733",
-    "secondary": "#8b5cf6",
-    "success": "#50fa7b",
+    "primary": "#563A6A",
+    "secondary": "#AEFF3C",
+    "success": "#AEFF3C",
     "warning": "#f1fa8c",
-    "highlight": "#50fa7b",
+    "highlight": "#AEFF3C",
     "text": "#e0d9f5",
-    "contrast-text": "#150d26"
+    "contrast-text": "#281931"
   }
 }
