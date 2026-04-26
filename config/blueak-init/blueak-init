@@ -412,7 +412,17 @@ main() {
         fi
 
         fix_service "aktags-daemon" "$HOME/.local/bin/aktags"
-        fix_service "ollama" "/usr/local/bin/ollama"
+
+        # Ollama — install binary if missing
+        if [[ ! -x "/usr/local/bin/ollama" ]]; then
+            log "Ollama: installing binary..."
+            OLLAMA_VER=$(curl -fsSL https://api.github.com/repos/ollama/ollama/releases/latest 2>/dev/null | grep '"tag_name"' | cut -d'"' -f4 || echo "latest")
+            if curl -fsSL "https://github.com/ollama/ollama/releases/download/${OLLAMA_VER}/ollama-linux-amd64" -o /tmp/ollama && chmod +x /tmp/ollama; then
+                sudo mv /tmp/ollama /usr/local/bin/ollama && ok "Ollama: binary installed" || warn "Ollama: binary install failed"
+            else
+                warn "Ollama: download failed"
+            fi
+        fi
 
         # Ensure services are running
         systemctl --user start aktags-daemon 2>/dev/null || true
