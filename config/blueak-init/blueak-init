@@ -260,9 +260,9 @@ main() {
         log "--- Nyxt ---"
         if ! flatpak list --user --app 2>/dev/null | grep -q "org.nyxt.Nyxt"; then
             log "Nyxt: installing flatpak..."
-            flatpak install --user -y flathub org.nyxt.Nyxt 2>/dev/null \
+            flatpak install --user -y flathub org.nyxt.Nyxt 2>&1 \
                 && ok "Nyxt: flatpak installed" \
-                || warn "Nyxt: flatpak install failed"
+                || { warn "Nyxt: flatpak install failed"; flatpak install --user -y flathub org.nyxt.Nyxt 2>&1 || warn "Nyxt: retry also failed"; }
             flatpak override org.nyxt.Nyxt \
                 --filesystem=home/.config/gtk-3.0:ro \
                 --filesystem=home/.config/gtk-4.0:ro \
@@ -346,19 +346,10 @@ main() {
             https://dl.flathub.org/repo/flathub.flatpakrepo 2>/dev/null \
             && ok "flathub remote present" \
             || warn "flathub remote-add failed"
-        # Install Nyxt if not present
-        if ! flatpak list --user --app 2>/dev/null | grep -q "org.nyxt.Nyxt"; then
-            log "Installing Nyxt..."
-            flatpak install --user -y flathub org.nyxt.Nyxt 2>/dev/null \
-                && ok "Nyxt installed" \
-                || warn "Nyxt install failed"
-        else
-            ok "Nyxt present"
-        fi
         # Install Bitwarden if not present
         if ! flatpak list --user --app 2>/dev/null | grep -q "com.bitwarden.desktop"; then
             log "Installing Bitwarden..."
-            flatpak install --user -y flathub com.bitwarden.desktop 2>/dev/null \
+            flatpak install --user -y flathub com.bitwarden.desktop 2>&1 \
                 && ok "Bitwarden installed" \
                 || warn "Bitwarden install failed"
         else
