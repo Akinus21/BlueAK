@@ -20,8 +20,7 @@ RUN dnf install -y \
     swaybg \
     earlyoom \
     libreoffice \
-    okular \
-    ollama
+    okular
 
 # Noctalia Shell — via Terra repo (Fyra Labs)
 # https://docs.noctalia.dev/getting-started/installation
