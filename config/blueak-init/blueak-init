@@ -182,16 +182,28 @@ main() {
             warn "System: old noctalia-gtk.service removed"
         fi
 
-        # Enable blueak-init service if not already enabled
+        # Copy blueak-init.service to user config dir FIRST, then enable
+        mkdir -p "$HOME/.config/systemd/user" "$HOME/.local/bin" "$HOME/.config/autostart"
+        skel_copy ".config/systemd/user/blueak-init.service"
+        if [[ -f /etc/skel/.config/systemd/user/blueak-init.service ]] && \
+           [[ ! -f "$HOME/.config/systemd/user/blueak-init.service" ]]; then
+            cp /etc/skel/.config/systemd/user/blueak-init.service \
+               "$HOME/.config/systemd/user/blueak-init.service" \
+               && ok "System: blueak-init.service copied to user dir" \
+               || warn "System: failed to copy blueak-init.service"
+        fi
+
+        systemctl --user daemon-reload 2>/dev/null || true
+        systemctl --user reset-failed 2>/dev/null || true
+
+        # Enable blueak-init service
         if ! systemctl --user is-enabled blueak-init 2>/dev/null; then
             systemctl --user enable blueak-init 2>/dev/null \
                 && ok "System: blueak-init.service enabled" \
                 || warn "System: blueak-init enable failed"
+        else
+            ok "System: blueak-init.service already enabled"
         fi
-
-        # Reload systemd after cleanup
-        systemctl --user daemon-reload 2>/dev/null || true
-        systemctl --user reset-failed 2>/dev/null || true
 
         # Show status box during first-run setup
         if require_zenity; then
@@ -206,18 +218,6 @@ main() {
             ((errors++))
             warn "AkTags: install failed — will retry on next login"
         fi
-        mkdir -p "$HOME/.config/systemd/user" "$HOME/.local/bin" "$HOME/.config/autostart"
-        skel_copy ".config/systemd/user/blueak-init.service"
-
-        # Fallback: if skel_copy didn't work, copy directly
-        if [[ -f /etc/skel/.config/systemd/user/blueak-init.service ]] && \
-           [[ ! -f "$HOME/.config/systemd/user/blueak-init.service" ]]; then
-            cp /etc/skel/.config/systemd/user/blueak-init.service \
-               "$HOME/.config/systemd/user/blueak-init.service" \
-               && ok "System: blueak-init.service copied to user dir" \
-               || warn "System: failed to copy blueak-init.service"
-        fi
-
         ln -sf "$HOME/.local/bin/aktags" "$HOME/.local/bin/aktags" 2>/dev/null || true
         skel_copy ".config/systemd/user/aktags-daemon.service"
         skel_copy ".config/autostart/aktags.desktop"

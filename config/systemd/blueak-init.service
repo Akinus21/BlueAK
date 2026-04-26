@@ -5,8 +5,7 @@ PartOf=graphical-session.target
 
 [Service]
 Type=oneshot
-ExecStartPre=/bin/bash -c 'echo "$(date): blueak-init.service starting" >> /tmp/blueak-debug.log'
-ExecStart=/bin/bash -c 'echo "$(date): calling blueak-init" >> /tmp/blueak-debug.log; PATH="/usr/local/bin:$PATH" exec /usr/local/bin/blueak-init'
+ExecStart=/bin/bash -c 'PATH="/usr/local/bin:$PATH" exec /usr/local/bin/blueak-init'
 RemainAfterExit=yes
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
 Environment=DISPLAY=:0
