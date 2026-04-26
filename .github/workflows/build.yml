@@ -100,6 +100,18 @@ jobs:
           sep-tags: " "
           sep-annotations: " "
 
+      - name: Maximize build disk space
+        run: |
+          echo "=== Disk before build cleanup ==="
+          df -h
+          sudo rm -rf /var/tmp/* /tmp/* 2>/dev/null || true
+          sudo sync 2>/dev/null || true
+          echo 3 | sudo tee /proc/sys/vm/drop_caches 2>/dev/null || true
+          sudo podman system prune -af --volumes 2>/dev/null || true
+          sudo docker system prune -af --volumes 2>/dev/null || true
+          echo "=== Disk after build cleanup ==="
+          df -h
+
       - name: Build Image
         id: build_image
         uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2
@@ -118,18 +130,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Clear disk before push
-        run: |
-          echo "=== Disk before push cleanup ==="
-          df -h
-          sudo rm -rf /var/tmp/*
-          sudo rm -rf /tmp/*
-          sudo sync
-          sudo sysctl -w vm.drop_caches=3 2>/dev/null || sudo sh -c 'echo 3 > /proc/sys/vm/drop_caches' 2>/dev/null || true
-          sudo podman system prune -af --volumes 2>/dev/null || true
-          echo "=== Disk after push cleanup ==="
-          df -h
 
       - name: Push To GHCR
         uses: redhat-actions/push-to-registry@5ed88d269cf581ea9ef6dd6806d01562096bee9c # v2
