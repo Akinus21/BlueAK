@@ -1,21 +1,19 @@
 #!/usr/bin/env bash
-# blueak-init — BlueAK first-login bootstrap and update checker
+# blueak-init — BlueAK bootstrap, sync, and health-check
 #
 # Runs on every login via systemd user service (blueak-init.service).
-# On first run: shows GUI status dialog, performs setup, seeds configs.
-# On subsequent runs: silently checks for broken services and restarts them.
-# Errors are reported via notify-send on completion.
+# Performs: skel sync, binary install/restore, config copy, cleanup, service start.
 #
 # Usage: ~/.local/bin/blueak-init (called by systemd service)
 #
-# To force re-run: rm ~/.local/share/blueak/.first-run-done
+# To force full re-sync: rm ~/.local/share/blueak/.sync-done
 
 set -eo pipefail
 
 BLUEAK_STATE_DIR="$HOME/.local/share/blueak"
 BLUEAK_LOG_DIR="$BLUEAK_STATE_DIR"
 BLUEAK_LOG="$BLUEAK_LOG_DIR/init.log"
-FIRST_RUN_MARKER="$BLUEAK_STATE_DIR/.first-run-done"
+SYNC_MARKER="$BLUEAK_STATE_DIR/.sync-done"
 VERSION_FILE="$BLUEAK_STATE_DIR/.versions"
 
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$UID}"
@@ -23,6 +21,7 @@ export DISPLAY="${DISPLAY:-:0}"
 export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}"
 
 mkdir -p "$BLUEAK_STATE_DIR" "$BLUEAK_LOG_DIR" "$HOME/.local/bin"
+    sudo mkdir -p /usr/local/bin 2>/dev/null || true
 
 # ── Logging helpers ───────────────────────────────────────────────────────────
 log()  { echo "➜  $1"; }
@@ -44,16 +43,8 @@ set_version() {
 # ── GUI helpers ──────────────────────────────────────────────────────────────
 require_zenity() { command -v zenity &>/dev/null; }
 
-show_status() {
-    local msg="$1"
-    if require_zenity; then
-        zenity --info --title="BlueAK Setup" --text="$msg" --no-wrap --width=400 2>/dev/null || true
-    fi
-}
-
 show_error() {
-    local title="$1"
-    local msg="$2"
+    local title="$1"; local msg="$2"
     if command -v notify-send &>/dev/null; then
         notify-send -u critical -a BlueAK -c device "$title" "$msg" 2>/dev/null || true
     fi
@@ -62,19 +53,21 @@ show_error() {
     fi
 }
 
-# ── Core skel copy ───────────────────────────────────────────────────────────
-skel_copy() {
-    local src="/etc/skel/$1"
-    local dest="$HOME/$1"
+# ── Sync skel file to user home ───────────────────────────────────────────────
+# Copies from /etc/skel to ~ if missing or different. Always logs.
+sync_skel() {
+    local src="/etc/skel/$1"; local dest="$HOME/$1"
     mkdir -p "$(dirname "$dest")"
     if [[ ! -f "$src" ]]; then
         warn "skel: $src not found — skipping"
         return 1
     fi
-    if [[ ! -f "$dest" ]] || ! cmp -s "$src" "$dest"; then
-        cp "$src" "$dest" && ok "skel: $1" || warn "skel: failed to copy $1"
+    if [[ ! -f "$dest" ]]; then
+        cp "$src" "$dest" && ok "skel: $1 copied" || warn "skel: failed to copy $1"
+    elif ! cmp -s "$src" "$dest"; then
+        cp "$src" "$dest" && ok "skel: $1 updated" || warn "skel: failed to update $1"
     else
-        ok "skel: $1 (up to date)"
+        ok "skel: $1 (current)"
     fi
 }
 
@@ -82,7 +75,7 @@ skel_copy() {
 require_brew() { command -v brew &>/dev/null; }
 
 brew_ensure() {
-    local pkg="$1" flag="${2:-}"
+    local pkg="$1"; local flag="${2:-}"
     if [[ "$flag" == "--cask" ]]; then
         brew list --cask "$pkg" &>/dev/null 2>&1 \
             && ok "brew cask: $pkg (present)" \
@@ -100,32 +93,23 @@ brew_ensure() {
     fi
 }
 
-# ── Runtime binary installer (for AkTags) ────────────────────────────────
+# ── Binary installer ─────────────────────────────────────────────────────────
 install_binary() {
-    local name="$1"
-    local url="$2"
-    local dest="$3"
-    local mode="${4:-755}"
-
+    local name="$1"; local url="$2"; local dest="$3"; local mode="${4:-755}"
     if [[ -x "$dest" ]]; then
         ok "$name: present at $dest"
         return 0
     fi
-
     log "$name: installing from $url..."
     local tmp
     tmp=$(mktemp)
     if curl -fsSL "$url" -o "$tmp" 2>/dev/null; then
-        local dest_dir
-        dest_dir=$(dirname "$dest")
-        mkdir -p "$dest_dir"
+        local dest_dir; dest_dir=$(dirname "$dest"); mkdir -p "$dest_dir"
         install -m "$mode" "$tmp" "$dest" 2>/dev/null \
             && { rm -f "$tmp"; ok "$name: installed to $dest"; return 0; } \
             || { rm -f "$tmp"; warn "$name: install to $dest failed"; return 1; }
     else
-        rm -f "$tmp"
-        warn "$name: download from $url failed"
-        return 1
+        rm -f "$tmp"; warn "$name: download from $url failed"; return 1
     fi
 }
 
@@ -134,24 +118,9 @@ install_aktags() {
     local AKTAGS_TAG
     AKTAGS_TAG=$(curl -fsSL https://api.github.com/repos/Akinus21/Aktags/releases/latest 2>/dev/null \
         | grep '"tag_name"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/' || echo "")
-    if [[ -z "$AKTAGS_TAG" ]]; then
-        warn "AkTags: could not fetch latest release tag"
-        return 1
-    fi
+    [[ -z "$AKTAGS_TAG" ]] && warn "AkTags: could not fetch latest release tag" && return 1
     local url="https://github.com/Akinus21/Aktags/releases/download/${AKTAGS_TAG}/aktags"
     install_binary "AkTags" "$url" "$HOME/.local/bin/aktags" "755"
-}
-
-# ── Noctalia color schemes ─────────────────────────────────────────────────
-fix_service() {
-    local svc="$1"
-    local bin_path="$2"
-    if systemctl --user is-enabled "$svc" &>/dev/null 2>&1; then
-        if [[ ! -x "$bin_path" ]]; then
-            warn "$svc: binary missing ($bin_path) — restarting may fix"
-            systemctl --user stop "$svc" 2>/dev/null || true
-        fi
-    fi
 }
 
 # ── Main ─────────────────────────────────────────────────────────────────────
@@ -164,280 +133,262 @@ main() {
 
     local errors=0
 
-    # ── First run: full setup with GUI ───────────────────────────────────────
-    if [[ ! -f "$FIRST_RUN_MARKER" ]]; then
-        touch "$FIRST_RUN_MARKER"
+    # ── Always: set up dirs and cleanup deprecated items ─────────────────────
+    mkdir -p "$HOME/.config/systemd/user" "$HOME/.local/bin" "$HOME/.config/autostart"
+    mkdir -p "$HOME/.local/share/applications"
+    systemctl --user daemon-reload 2>/dev/null || true
+    systemctl --user reset-failed 2>/dev/null || true
 
-        log "BlueAK first-run: starting setup..."
+    # Cleanup: old noctalia-gtk service (deprecated)
+    if systemctl --user is-enabled noctalia-gtk 2>/dev/null; then
+        systemctl --user disable --now noctalia-gtk 2>/dev/null || true
+        warn "Cleanup: old noctalia-gtk service disabled"
+    fi
+    rm -f "$HOME/.config/systemd/user/noctalia-gtk.service"
+    rm -f "$HOME/.config/systemd/user/noctalia-gtk.service.bak"
 
-        # Cleanup: remove old noctalia-gtk service if present
-        if systemctl --user is-enabled noctalia-gtk 2>/dev/null; then
-            systemctl --user disable --now noctalia-gtk 2>/dev/null || true
-            warn "System: old noctalia-gtk service disabled"
-        fi
+    # Cleanup: orphaned flatpak ref (old Nyxt app ID)
+    flatpak uninstall --user -y org.nyxt.Nyxt 2>/dev/null || true
 
-        # Cleanup: remove old noctalia-gtk service file
-        if [[ -f "$HOME/.config/systemd/user/noctalia-gtk.service" ]]; then
-            rm -f "$HOME/.config/systemd/user/noctalia-gtk.service" || true
-            warn "System: old noctalia-gtk.service removed"
-        fi
+    # Cleanup: stray Noctalia colors at root level (moved to colorschemes/)
+    rm -f "$HOME/.config/noctalia/purple-haze.json"
+    rm -f "$HOME/.config/noctalia/midnight-cherry.json"
+    rm -f "$HOME/.config/noctalia/eldritch.json"
 
-        # Copy blueak-init.service to user config dir FIRST, then enable
-        mkdir -p "$HOME/.config/systemd/user" "$HOME/.local/bin" "$HOME/.config/autostart"
-        skel_copy ".config/systemd/user/blueak-init.service"
-        if [[ -f /etc/skel/.config/systemd/user/blueak-init.service ]] && \
-           [[ ! -f "$HOME/.config/systemd/user/blueak-init.service" ]]; then
-            cp /etc/skel/.config/systemd/user/blueak-init.service \
-               "$HOME/.config/systemd/user/blueak-init.service" \
-               && ok "System: blueak-init.service copied to user dir" \
-               || warn "System: failed to copy blueak-init.service"
-        fi
+    # Cleanup: old AkTags desktop files from old install paths
+    rm -f "$HOME/.config/autostart/aktags.desktop.bak"
 
-        systemctl --user daemon-reload 2>/dev/null || true
-        systemctl --user reset-failed 2>/dev/null || true
+    # Cleanup: temp files from this user's state dir
+    rm -rf "$BLUEAK_STATE_DIR/tmp" 2>/dev/null || true
 
-        # Enable blueak-init service
-        if ! systemctl --user is-enabled blueak-init 2>/dev/null; then
-            systemctl --user enable blueak-init 2>/dev/null \
-                && ok "System: blueak-init.service enabled" \
-                || warn "System: blueak-init enable failed"
-        else
-            ok "System: blueak-init.service already enabled"
-        fi
+    # ── Always: sync blueak-init systemd service ─────────────────────────────
+    sync_skel ".config/systemd/user/blueak-init.service"
+    if [[ -f /etc/skel/.config/systemd/user/blueak-init.service ]] && \
+       [[ ! -f "$HOME/.config/systemd/user/blueak-init.service" ]]; then
+        cp /etc/skel/.config/systemd/user/blueak-init.service \
+           "$HOME/.config/systemd/user/blueak-init.service" \
+           && ok "blueak-init.service: copied to user dir" \
+           || warn "blueak-init.service: failed to copy"
+    fi
+    if ! systemctl --user is-enabled blueak-init 2>/dev/null; then
+        systemctl --user enable blueak-init 2>/dev/null \
+            && ok "blueak-init.service: enabled" \
+            || warn "blueak-init.service: enable failed"
+    fi
 
-        # Show status box during first-run setup
-        if require_zenity; then
-            zenity --info --title="BlueAK Setup" --text="Setting up BlueAK...\n\nThis window will close when complete." --no-wrap --width=400 &
-            local ZENITY_PID=$!
-            disown $ZENITY_PID 2>/dev/null || true
-        fi
+    # ── Always: show GUI status box on sync (if zenity available) ───────────
+    local ZENITY_PID=""
+    if require_zenity; then
+        zenity --info --title="BlueAK Setup" --text="Syncing BlueAK...\n\nThis window will close when complete." --no-wrap --width=400 &
+        ZENITY_PID=$!
+        disown $ZENITY_PID 2>/dev/null || true
+    fi
 
-        # ── 1. AkTags ─────────────────────────────────────────────────────────
-        log "--- AkTags ---"
-        if ! install_aktags; then
-            ((errors++))
-            warn "AkTags: install failed — will retry on next login"
-        fi
-        ln -sf "$HOME/.local/bin/aktags" "$HOME/.local/bin/aktags" 2>/dev/null || true
-        skel_copy ".config/systemd/user/aktags-daemon.service"
-        skel_copy ".config/autostart/aktags.desktop"
-        systemctl --user daemon-reload 2>/dev/null || true
-        if ! systemctl --user enable --now aktags-daemon 2>/dev/null; then
-            ((errors++))
-            warn "AkTags daemon: failed to start"
-        else
-            ok "AkTags daemon: enabled"
-        fi
-        xdg-mime default aktags.desktop inode/directory 2>/dev/null || true
+    # ── 1. AkTags ────────────────────────────────────────────────────────────
+    log "--- AkTags ---"
+    if ! install_aktags; then
+        ((errors++))
+        warn "AkTags: install failed"
+    fi
+    sync_skel ".config/systemd/user/aktags-daemon.service"
+    sync_skel ".config/autostart/aktags.desktop"
+    xdg-mime default aktags.desktop inode/directory 2>/dev/null || true
+    if ! systemctl --user enable --now aktags-daemon 2>/dev/null; then
+        ((errors++))
+        warn "AkTags daemon: failed to start"
+    else
+        ok "AkTags daemon: running"
+    fi
 
-        # ── 2. Noctalia color schemes ────────────────────────────────────────────
-        log "--- Noctalia color schemes ---"
-        mkdir -p "$HOME/.config/noctalia/colorschemes"
-
-        # Copy flat colors.json (active theme seed)
-        if [[ -f /etc/skel/.config/noctalia/colors.json ]]; then
-            cp /etc/skel/.config/noctalia/colors.json "$HOME/.config/noctalia/colors.json" \
-                && ok "Noctalia: colors.json seeded" \
-                || warn "Noctalia: failed to seed colors.json"
-        fi
-
-        # Copy nested color schemes to colorschemes/ directory
-        for scheme_dir in /etc/skel/.config/noctalia/colorschemes/*/; do
-            if [[ -d "$scheme_dir" ]]; then
-                scheme_name=$(basename "$scheme_dir")
-                mkdir -p "$HOME/.config/noctalia/colorschemes/$scheme_name"
-                for scheme_file in "$scheme_dir"*.json; do
-                    if [[ -f "$scheme_file" ]]; then
-                        cp "$scheme_file" "$HOME/.config/noctalia/colorschemes/$scheme_name/" \
-                            && ok "Noctalia: scheme $scheme_name seeded" \
-                            || warn "Noctalia: failed to seed scheme $scheme_name"
-                    fi
-                done
-            fi
-        done
-
-        # ── 3. Nyxt ─────────────────────────────────────────────────────────
-        log "--- Nyxt ---"
-        if ! flatpak list --user --app 2>/dev/null | grep -q "engineer.atlas.Nyxt"; then
-            log "Nyxt: installing flatpak..."
-            flatpak install --user -y flathub engineer.atlas.Nyxt 2>&1 \
-                && ok "Nyxt: flatpak installed" \
-                || { warn "Nyxt: flatpak install failed"; flatpak install --user -y flathub engineer.atlas.Nyxt 2>&1 || warn "Nyxt: retry also failed"; }
-            flatpak override engineer.atlas.Nyxt \
-                --filesystem=home/.config/gtk-3.0:ro \
-                --filesystem=home/.config/gtk-4.0:ro \
-                --filesystem=home/.config/noctalia:ro \
-                --filesystem=xdg-config/gtk-3.0:ro \
-                --filesystem=xdg-config/gtk-4.0:ro \
-                --filesystem=xdg-config/KDEGlobals:rw \
-                --device=all \
-                --talk-name=org.freedesktop.secrets \
-                --talk-name=org.freedesktop.Notifications \
-                --env=LIBSEAL_BAD=1 2>/dev/null \
-                && ok "Nyxt: flatpak overrides applied" \
-                || warn "Nyxt: flatpak override failed"
-        else
-            ok "Nyxt: flatpak present"
-        fi
-        skel_copy ".config/nyxt/config.lisp"
-        THEMES_DIR="$HOME/.config/nyxt/themes"
-        mkdir -p "$THEMES_DIR"
-        for theme_src in /etc/skel/.config/nyxt/themes/*.json; do
-            if [[ -f "$theme_src" ]]; then
-                theme_name=$(basename "$theme_src")
-                if [[ ! -f "$THEMES_DIR/$theme_name" ]] || ! cmp -s "$theme_src" "$THEMES_DIR/$theme_name"; then
-                    cp "$theme_src" "$THEMES_DIR/$theme_name" \
-                        && ok "Nyxt: theme $theme_name seeded" \
-                        || warn "Nyxt: failed to seed theme $theme_name"
+    # ── 2. Noctalia color schemes ───────────────────────────────────────────
+    log "--- Noctalia color schemes ---"
+    mkdir -p "$HOME/.config/noctalia/colorschemes"
+    sync_skel "config/noctalia/colors.json"
+    sync_skel "config/noctalia/settings.json"
+    for scheme_dir in /etc/skel/.config/noctalia/colorschemes/*/; do
+        if [[ -d "$scheme_dir" ]]; then
+            scheme_name=$(basename "$scheme_dir")
+            mkdir -p "$HOME/.config/noctalia/colorschemes/$scheme_name"
+            for scheme_file in "$scheme_dir"*.json; do
+                [[ -f "$scheme_file" ]] || continue
+                local dest_file="$HOME/.config/noctalia/colorschemes/$scheme_name/$(basename "$scheme_file")"
+                if [[ ! -f "$dest_file" ]] || ! cmp -s "$scheme_file" "$dest_file"; then
+                    cp "$scheme_file" "$dest_file" \
+                        && ok "Noctalia: scheme $scheme_name updated" \
+                        || warn "Noctalia: failed to update scheme $scheme_name"
+                else
+                    ok "Noctalia: scheme $scheme_name (current)"
                 fi
-            fi
-        done
-        if [[ ! -f "$HOME/.local/bin/set-nyxt-theme" ]] || \
-           ! cmp -s /etc/skel/.local/bin/set-nyxt-theme "$HOME/.local/bin/set-nyxt-theme" 2>/dev/null; then
-            mkdir -p "$HOME/.local/bin"
-            cp /etc/skel/.local/bin/set-nyxt-theme "$HOME/.local/bin/set-nyxt-theme" \
-                && chmod +x "$HOME/.local/bin/set-nyxt-theme" \
-                && ok "Nyxt: set-nyxt-theme installed" \
-                || warn "Nyxt: set-nyxt-theme install failed"
+            done
         fi
-        NYXT_THEME_MARKER="$THEMES_DIR/current"
-        if [[ ! -f "$NYXT_THEME_MARKER" ]]; then
-            if command -v set-nyxt-theme &>/dev/null; then
-                set-nyxt-theme noctalia && ok "Nyxt: theme (noctalia) applied"
-            elif [[ -f "$HOME/.local/bin/set-nyxt-theme" ]]; then
-                python3 "$HOME/.local/bin/set-nyxt-theme" noctalia && ok "Nyxt: theme (noctalia) applied"
-            fi
-        fi
-        NYXT_DESKTOP_SRC="/usr/share/applications/nyxt.desktop"
-        NYXT_DESKTOP_USR="$HOME/.local/share/applications/nyxt.desktop"
-        if [[ -f "$NYXT_DESKTOP_SRC" ]]; then
-            if [[ ! -f "$NYXT_DESKTOP_USR" ]] || ! cmp -s "$NYXT_DESKTOP_SRC" "$NYXT_DESKTOP_USR"; then
-                cp "$NYXT_DESKTOP_SRC" "$NYXT_DESKTOP_USR" \
-                    && ok "Nyxt: .desktop installed" \
-                    || warn "Nyxt: .desktop install failed"
-            fi
-        fi
-        if command -v update-desktop-database &>/dev/null; then
-            update-desktop-database "$HOME/.local/share/applications/" 2>/dev/null \
-                && ok "Nyxt: desktop database refreshed" \
-                || warn "Nyxt: desktop database refresh failed"
-        fi
+    done
 
-        # ── 4. Homebrew packages ──────────────────────────────────────────────
-        log "--- Homebrew ---"
-        if ! require_brew; then
-            warn "Homebrew not found — skipping brew packages"
+    # ── 3. Nyxt ─────────────────────────────────────────────────────────────
+    log "--- Nyxt ---"
+    if ! flatpak list --user --app 2>/dev/null | grep -q "engineer.atlas.Nyxt"; then
+        log "Nyxt: installing flatpak..."
+        flatpak install --user -y flathub engineer.atlas.Nyxt 2>&1 \
+            && ok "Nyxt: flatpak installed" \
+            || { warn "Nyxt: flatpak install failed"
+                 flatpak install --user -y flathub engineer.atlas.Nyxt 2>&1 \
+                     || warn "Nyxt: retry also failed"; }
+        flatpak override engineer.atlas.Nyxt \
+            --filesystem=home/.config/gtk-3.0:ro \
+            --filesystem=home/.config/gtk-4.0:ro \
+            --filesystem=home/.config/noctalia:ro \
+            --filesystem=xdg-config/gtk-3.0:ro \
+            --filesystem=xdg-config/gtk-4.0:ro \
+            --filesystem=xdg-config/KDEGlobals:rw \
+            --device=all \
+            --talk-name=org.freedesktop.secrets \
+            --talk-name=org.freedesktop.Notifications \
+            --env=LIBSEAL_BAD=1 2>/dev/null \
+            && ok "Nyxt: flatpak overrides applied" \
+            || warn "Nyxt: flatpak override failed"
+    else
+        ok "Nyxt: flatpak present"
+    fi
+    sync_skel ".config/nyxt/config.lisp"
+    local THEMES_DIR="$HOME/.config/nyxt/themes"
+    mkdir -p "$THEMES_DIR"
+    for theme_src in /etc/skel/.config/nyxt/themes/*.json; do
+        [[ -f "$theme_src" ]] || continue
+        local theme_name=$(basename "$theme_src")
+        local theme_dest="$THEMES_DIR/$theme_name"
+        if [[ ! -f "$theme_dest" ]] || ! cmp -s "$theme_src" "$theme_dest"; then
+            cp "$theme_src" "$theme_dest" \
+                && ok "Nyxt: theme $theme_name updated" \
+                || warn "Nyxt: failed to update theme $theme_name"
         else
-            brew tap Akinus21/homebrew-tap 2>/dev/null || warn "brew: tap Akinus21/homebrew-tap failed"
-            for pkg in lazygit git-delta gh gitleaks; do brew_ensure "$pkg"; done
-            for pkg in atuin tmux tldr; do brew_ensure "$pkg"; done
-            for pkg in jq yq xh; do brew_ensure "$pkg"; done
-            for pkg in trivy grype; do brew_ensure "$pkg"; done
-            for pkg in yazi duf dust age; do brew_ensure "$pkg"; done
-            brew_ensure "aktags"
-            brew_ensure "bitwarden-cli"
-            brew_ensure "font-meslo-lg-nerd-font" --cask
-            brew_ensure "aktools"
+            ok "Nyxt: theme $theme_name (current)"
         fi
-
-        # ── 5. Flatpak ───────────────────────────────────────────────────────
-        log "--- Flatpak ---"
-        flatpak remote-add --user --if-not-exists flathub \
-            https://dl.flathub.org/repo/flathub.flatpakrepo 2>/dev/null \
-            && ok "flathub remote present" \
-            || warn "flathub remote-add failed"
-        # Install Bitwarden if not present
-        if ! flatpak list --user --app 2>/dev/null | grep -q "com.bitwarden.desktop"; then
-            log "Installing Bitwarden..."
-            flatpak install --user -y flathub com.bitwarden.desktop 2>&1 \
-                && ok "Bitwarden installed" \
-                || warn "Bitwarden install failed"
-        else
-            ok "Bitwarden present"
+    done
+    sync_skel ".local/bin/set-nyxt-theme"
+    chmod +x "$HOME/.local/bin/set-nyxt-theme" 2>/dev/null || true
+    local NYXT_THEME_MARKER="$THEMES_DIR/current"
+    if [[ ! -f "$NYXT_THEME_MARKER" ]]; then
+        if command -v set-nyxt-theme &>/dev/null; then
+            set-nyxt-theme noctalia && ok "Nyxt: theme (noctalia) applied"
+        elif [[ -x "$HOME/.local/bin/set-nyxt-theme" ]]; then
+            python3 "$HOME/.local/bin/set-nyxt-theme" noctalia && ok "Nyxt: theme (noctalia) applied"
         fi
-
-        # ── 6. CAC setup (full zero-interaction) ─────────────────────────────────
-        log "--- CAC setup ---"
-        CAC_SETUP="/etc/skel/.local/bin/cac-setup"
-        if [[ -x "$CAC_SETUP" ]]; then
-            bash "$CAC_SETUP" && ok "CAC setup complete" || warn "CAC setup failed"
-        elif [[ -f "$CAC_SETUP" ]]; then
-            chmod +x "$CAC_SETUP" && bash "$CAC_SETUP" && ok "CAC setup complete" || warn "CAC setup failed"
-        else
-            warn "cac-setup not found in skel — skipping"
+    fi
+    local NYXT_DESKTOP_SRC="/usr/share/applications/nyxt.desktop"
+    local NYXT_DESKTOP_USR="$HOME/.local/share/applications/nyxt.desktop"
+    if [[ -f "$NYXT_DESKTOP_SRC" ]]; then
+        if [[ ! -f "$NYXT_DESKTOP_USR" ]] || ! cmp -s "$NYXT_DESKTOP_SRC" "$NYXT_DESKTOP_USR"; then
+            cp "$NYXT_DESKTOP_SRC" "$NYXT_DESKTOP_USR" \
+                && ok "Nyxt: .desktop installed" \
+                || warn "Nyxt: .desktop install failed"
         fi
+    fi
+    if command -v update-desktop-database &>/dev/null; then
+        update-desktop-database "$HOME/.local/share/applications/" 2>/dev/null \
+            && ok "Nyxt: desktop database refreshed" \
+            || warn "Nyxt: desktop database refresh failed"
+    fi
 
-        # ── 7. Ollama ──────────────────────────────────────────────────────────────
-        log "--- Ollama ---"
-        if ! command -v ollama &>/dev/null; then
-            log "Ollama: installing binary..."
-            OLLAMA_VER=$(curl -fsSL https://api.github.com/repos/ollama/ollama/releases/latest 2>/dev/null | grep '"tag_name"' | cut -d'"' -f4 || echo "latest")
-            curl -fsSL "https://github.com/ollama/ollama/releases/download/${OLLAMA_VER}/ollama-linux-amd64" \
-                -o /tmp/ollama && chmod +x /tmp/ollama && sudo mv /tmp/ollama /usr/local/bin/ollama \
+    # ── 4. GTK themes (Eldritch) ─────────────────────────────────────────────
+    log "--- GTK themes (Eldritch) ---"
+    sync_skel ".config/gtk-3.0/settings.ini"
+    sync_skel ".config/gtk-4.0/settings.ini"
+
+    # ── 5. Niri config ─────────────────────────────────────────────────────
+    log "--- Niri config ---"
+    sync_skel ".config/niri/config.kdl"
+
+    # ── 6. Homebrew packages ────────────────────────────────────────────────
+    log "--- Homebrew ---"
+    if ! require_brew; then
+        warn "Homebrew not found — skipping brew packages"
+    else
+        brew tap Akinus21/homebrew-tap 2>/dev/null || warn "brew: tap Akinus21/homebrew-tap failed"
+        for pkg in lazygit git-delta gh gitleaks; do brew_ensure "$pkg"; done
+        for pkg in atuin tmux tldr; do brew_ensure "$pkg"; done
+        for pkg in jq yq xh; do brew_ensure "$pkg"; done
+        for pkg in trivy grype; do brew_ensure "$pkg"; done
+        for pkg in yazi duf dust age; do brew_ensure "$pkg"; done
+        brew_ensure "aktags"
+        brew_ensure "bitwarden-cli"
+        brew_ensure "font-meslo-lg-nerd-font" --cask
+        brew_ensure "aktools"
+    fi
+
+    # ── 7. Flatpak (Bitwarden) ──────────────────────────────────────────────
+    log "--- Flatpak ---"
+    flatpak remote-add --user --if-not-exists flathub \
+        https://dl.flathub.org/repo/flathub.flatpakrepo 2>/dev/null \
+        && ok "flathub remote present" \
+        || warn "flathub remote-add failed"
+    if ! flatpak list --user --app 2>/dev/null | grep -q "com.bitwarden.desktop"; then
+        log "Installing Bitwarden..."
+        flatpak install --user -y flathub com.bitwarden.desktop 2>&1 \
+            && ok "Bitwarden installed" \
+            || warn "Bitwarden install failed"
+    else
+        ok "Bitwarden present"
+    fi
+
+    # ── 8. CAC setup ─────────────────────────────────────────────────────────
+    log "--- CAC setup ---"
+    CAC_SETUP="/etc/skel/.local/bin/cac-setup"
+    if [[ -x "$CAC_SETUP" ]]; then
+        bash "$CAC_SETUP" && ok "CAC setup complete" || warn "CAC setup failed"
+    elif [[ -f "$CAC_SETUP" ]]; then
+        chmod +x "$CAC_SETUP" && bash "$CAC_SETUP" && ok "CAC setup complete" || warn "CAC setup failed"
+    else
+        warn "cac-setup not found in skel — skipping"
+    fi
+
+    # ── 9. Ollama ────────────────────────────────────────────────────────────
+    log "--- Ollama ---"
+    if ! command -v /usr/local/bin/ollama &>/dev/null; then
+        log "Ollama: installing binary..."
+        local OLLAMA_VER
+        OLLAMA_VER=$(curl -fsSL https://api.github.com/repos/ollama/ollama/releases/latest 2>/dev/null \
+            | grep '"tag_name"' | cut -d'"' -f4 || echo "latest")
+        if curl -fsSL "https://github.com/ollama/ollama/releases/download/${OLLAMA_VER}/ollama-linux-amd64" \
+               -o /tmp/ollama && chmod +x /tmp/ollama; then
+            sudo mv /tmp/ollama /usr/local/bin/ollama \
                 && ok "Ollama: binary installed" \
                 || warn "Ollama: binary install failed"
         else
-            ok "Ollama: binary present"
+            warn "Ollama: download failed"
         fi
-        skel_copy ".config/systemd/user/ollama.service"
-        systemctl --user daemon-reload 2>/dev/null || true
-        if ! systemctl --user enable --now ollama 2>/dev/null; then
-            warn "Ollama: failed to start"
-        else
-            ok "Ollama: enabled"
-        fi
-
-        set_version "first_run" "$(date +%s)"
-
     else
-        # ── Subsequent runs: fix broken services silently ─────────────────
-        log "BlueAK: checking services..."
-
-        # Cleanup old noctalia-gtk service if still present
-        if systemctl --user is-enabled noctalia-gtk 2>/dev/null; then
-            systemctl --user disable --now noctalia-gtk 2>/dev/null || true
-            warn "System: old noctalia-gtk service disabled"
-        fi
-
-        if [[ -f "$HOME/.config/systemd/user/noctalia-gtk.service" ]]; then
-            rm -f "$HOME/.config/systemd/user/noctalia-gtk.service" || true
-            warn "System: old noctalia-gtk.service removed"
-        fi
-
-        # Enable blueak-init service if not already enabled
-        if ! systemctl --user is-enabled blueak-init 2>/dev/null; then
-            systemctl --user enable blueak-init 2>/dev/null \
-                && ok "System: blueak-init.service enabled" \
-                || warn "System: blueak-init enable failed"
-        fi
-
-        fix_service "aktags-daemon" "$HOME/.local/bin/aktags"
-
-        # Ollama — install binary if missing
-        if [[ ! -x "/usr/local/bin/ollama" ]]; then
-            log "Ollama: installing binary..."
-            OLLAMA_VER=$(curl -fsSL https://api.github.com/repos/ollama/ollama/releases/latest 2>/dev/null | grep '"tag_name"' | cut -d'"' -f4 || echo "latest")
-            if curl -fsSL "https://github.com/ollama/ollama/releases/download/${OLLAMA_VER}/ollama-linux-amd64" -o /tmp/ollama && chmod +x /tmp/ollama; then
-                sudo mv /tmp/ollama /usr/local/bin/ollama && ok "Ollama: binary installed" || warn "Ollama: binary install failed"
-            else
-                warn "Ollama: download failed"
-            fi
-        fi
-
-        # Ensure services are running
-        systemctl --user start aktags-daemon 2>/dev/null || true
-        systemctl --user start ollama 2>/dev/null || true
+        ok "Ollama: binary present"
+    fi
+    sync_skel ".config/systemd/user/ollama.service"
+    if ! systemctl --user enable --now ollama 2>/dev/null; then
+        warn "Ollama: failed to start"
+    else
+        ok "Ollama: enabled"
     fi
 
+    # ── 10. Zsh config (Powerlevel10k + plugins) ────────────────────────────
+    log "--- Zsh config ---"
+    sync_skel ".zshrc"
+    sync_skel ".p10k.zsh"
+    sync_skel "justfile"
+
+    # ── Always: ensure all tracked services are running ────────────────────
+    log "--- Service health ---"
+    systemctl --user start aktags-daemon 2>/dev/null || true
+    systemctl --user start ollama 2>/dev/null || true
+
+    # Mark sync complete
+    touch "$SYNC_MARKER"
+    set_version "last_sync" "$(date +%s)"
+
     echo ""
-    # Kill the status box if still running
+    # Kill status box
     if [[ -n "$ZENITY_PID" ]] && kill -0 "$ZENITY_PID" 2>/dev/null; then
         kill "$ZENITY_PID" 2>/dev/null || true
     fi
 
     if [[ $errors -gt 0 ]]; then
         ok "blueak-init complete with $errors error(s) — see ~/.local/share/blueak/init.log"
-        show_error "BlueAK Setup Complete" "BlueAK setup finished with $errors error(s).\nCheck ~/.local/share/blueak/init.log for details."
+        show_error "BlueAK Setup" "blueak-init finished with $errors error(s).\nCheck ~/.local/share/blueak/init.log for details."
     else
         ok "blueak-init complete"
         if command -v notify-send &>/dev/null; then
