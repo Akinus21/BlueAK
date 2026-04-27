@@ -25,10 +25,7 @@ window-rule {
 window-rule {
     match app-id="ulauncher"
     open-floating true
-    place-floating-center
     draw-border-with-background false
-    exclude-from-tabs true
-    focus-on-activate true
 }
 
 debug {
