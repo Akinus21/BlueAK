@@ -21,7 +21,7 @@ export DISPLAY="${DISPLAY:-:0}"
 export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}"
 
 mkdir -p "$BLUEAK_STATE_DIR" "$BLUEAK_LOG_DIR" "$HOME/.local/bin"
-    sudo mkdir -p /usr/local/bin 2>/dev/null || true
+sudo mkdir -p /usr/local/bin 2>/dev/null || true
 
 # ── Logging helpers ───────────────────────────────────────────────────────────
 log()  { echo "➜  $1"; }
@@ -55,12 +55,13 @@ show_error() {
 
 # ── Sync skel file to user home ───────────────────────────────────────────────
 # Copies from /etc/skel to ~ if missing or different. Always logs.
+# Does NOT fail script if src is missing.
 sync_skel() {
     local src="/etc/skel/$1"; local dest="$HOME/$1"
     mkdir -p "$(dirname "$dest")"
     if [[ ! -f "$src" ]]; then
         warn "skel: $src not found — skipping"
-        return 1
+        return 0
     fi
     if [[ ! -f "$dest" ]]; then
         cp "$src" "$dest" && ok "skel: $1 copied" || warn "skel: failed to copy $1"
@@ -69,6 +70,7 @@ sync_skel() {
     else
         ok "skel: $1 (current)"
     fi
+    return 0
 }
 
 # ── Homebrew helpers ─────────────────────────────────────────────────────────
@@ -113,16 +115,6 @@ install_binary() {
     fi
 }
 
-# ── AkTags runtime install ────────────────────────────────────────────────────
-install_aktags() {
-    local AKTAGS_TAG
-    AKTAGS_TAG=$(curl -fsSL https://api.github.com/repos/Akinus21/Aktags/releases/latest 2>/dev/null \
-        | grep '"tag_name"' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/' || echo "")
-    [[ -z "$AKTAGS_TAG" ]] && warn "AkTags: could not fetch latest release tag" && return 1
-    local url="https://github.com/Akinus21/Aktags/releases/download/${AKTAGS_TAG}/aktags"
-    install_binary "AkTags" "$url" "$HOME/.local/bin/aktags" "755"
-}
-
 # ── Main ─────────────────────────────────────────────────────────────────────
 main() {
     exec >> "$BLUEAK_LOG" 2>&1
@@ -150,7 +142,7 @@ main() {
     # Cleanup: orphaned flatpak ref (old Nyxt app ID)
     flatpak uninstall --user -y org.nyxt.Nyxt 2>/dev/null || true
 
-    # Cleanup: stray Noctalia colors at root level (moved to colorschemes/)
+    # Cleanup: stray Noctalia colors at root level
     rm -f "$HOME/.config/noctalia/purple-haze.json"
     rm -f "$HOME/.config/noctalia/midnight-cherry.json"
     rm -f "$HOME/.config/noctalia/eldritch.json"
@@ -184,46 +176,7 @@ main() {
         disown $ZENITY_PID 2>/dev/null || true
     fi
 
-    # ── 1. AkTags ────────────────────────────────────────────────────────────
-    log "--- AkTags ---"
-    if ! install_aktags; then
-        ((errors++))
-        warn "AkTags: install failed"
-    fi
-    sync_skel ".config/systemd/user/aktags-daemon.service"
-    sync_skel ".config/autostart/aktags.desktop"
-    xdg-mime default aktags.desktop inode/directory 2>/dev/null || true
-    if ! systemctl --user enable --now aktags-daemon 2>/dev/null; then
-        ((errors++))
-        warn "AkTags daemon: failed to start"
-    else
-        ok "AkTags daemon: running"
-    fi
-
-    # ── 2. Noctalia color schemes ───────────────────────────────────────────
-    log "--- Noctalia color schemes ---"
-    mkdir -p "$HOME/.config/noctalia/colorschemes"
-    sync_skel "config/noctalia/colors.json"
-    sync_skel "config/noctalia/settings.json"
-    for scheme_dir in /etc/skel/.config/noctalia/colorschemes/*/; do
-        if [[ -d "$scheme_dir" ]]; then
-            scheme_name=$(basename "$scheme_dir")
-            mkdir -p "$HOME/.config/noctalia/colorschemes/$scheme_name"
-            for scheme_file in "$scheme_dir"*.json; do
-                [[ -f "$scheme_file" ]] || continue
-                local dest_file="$HOME/.config/noctalia/colorschemes/$scheme_name/$(basename "$scheme_file")"
-                if [[ ! -f "$dest_file" ]] || ! cmp -s "$scheme_file" "$dest_file"; then
-                    cp "$scheme_file" "$dest_file" \
-                        && ok "Noctalia: scheme $scheme_name updated" \
-                        || warn "Noctalia: failed to update scheme $scheme_name"
-                else
-                    ok "Noctalia: scheme $scheme_name (current)"
-                fi
-            done
-        fi
-    done
-
-    # ── 3. Nyxt ─────────────────────────────────────────────────────────────
+    # ── 1. Nyxt ─────────────────────────────────────────────────────────────
     log "--- Nyxt ---"
     if ! flatpak list --user --app 2>/dev/null | grep -q "engineer.atlas.Nyxt"; then
         log "Nyxt: installing flatpak..."
@@ -288,16 +241,16 @@ main() {
             || warn "Nyxt: desktop database refresh failed"
     fi
 
-    # ── 4. GTK themes (Eldritch) ─────────────────────────────────────────────
+    # ── 2. GTK themes (Eldritch) ─────────────────────────────────────────────
     log "--- GTK themes (Eldritch) ---"
     sync_skel ".config/gtk-3.0/settings.ini"
     sync_skel ".config/gtk-4.0/settings.ini"
 
-    # ── 5. Niri config ─────────────────────────────────────────────────────
+    # ── 3. Niri config ─────────────────────────────────────────────────────
     log "--- Niri config ---"
     sync_skel ".config/niri/config.kdl"
 
-    # ── 6. Homebrew packages ────────────────────────────────────────────────
+    # ── 4. Homebrew packages ────────────────────────────────────────────────
     log "--- Homebrew ---"
     if ! require_brew; then
         warn "Homebrew not found — skipping brew packages"
@@ -314,7 +267,7 @@ main() {
         brew_ensure "aktools"
     fi
 
-    # ── 7. Flatpak (Bitwarden) ──────────────────────────────────────────────
+    # ── 5. Flatpak (Bitwarden) ──────────────────────────────────────────────
     log "--- Flatpak ---"
     flatpak remote-add --user --if-not-exists flathub \
         https://dl.flathub.org/repo/flathub.flatpakrepo 2>/dev/null \
@@ -329,7 +282,7 @@ main() {
         ok "Bitwarden present"
     fi
 
-    # ── 8. CAC setup ─────────────────────────────────────────────────────────
+    # ── 6. CAC setup ─────────────────────────────────────────────────────────
     log "--- CAC setup ---"
     CAC_SETUP="/etc/skel/.local/bin/cac-setup"
     if [[ -x "$CAC_SETUP" ]]; then
@@ -340,7 +293,7 @@ main() {
         warn "cac-setup not found in skel — skipping"
     fi
 
-    # ── 9. Ollama ────────────────────────────────────────────────────────────
+    # ── 7. Ollama ────────────────────────────────────────────────────────────
     log "--- Ollama ---"
     if ! command -v /usr/local/bin/ollama &>/dev/null; then
         log "Ollama: installing binary..."
@@ -365,7 +318,7 @@ main() {
         ok "Ollama: enabled"
     fi
 
-    # ── 10. Zsh config (Powerlevel10k + plugins) ────────────────────────────
+    # ── 8. Zsh config (Powerlevel10k + plugins) ────────────────────────────
     log "--- Zsh config ---"
     sync_skel ".zshrc"
     sync_skel ".p10k.zsh"
@@ -373,7 +326,6 @@ main() {
 
     # ── Always: ensure all tracked services are running ────────────────────
     log "--- Service health ---"
-    systemctl --user start aktags-daemon 2>/dev/null || true
     systemctl --user start ollama 2>/dev/null || true
 
     # Mark sync complete
