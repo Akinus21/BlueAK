@@ -1,5 +1,3 @@
-// BlueAK Niri config — minimal working baseline
-
 binds {
     Mod+D { spawn "ulauncher-toggle"; }
 }
@@ -11,14 +9,4 @@ input {
     }
 }
 
-// Autostart
 spawn-at-startup "ulauncher" "--hide-window"
-
-window-rule {
-    match app-id="ulauncher"
-    open-floating true
-}
-
-// debug {
-//     honor-xdg-activation-with-invalid-serial
-// }
