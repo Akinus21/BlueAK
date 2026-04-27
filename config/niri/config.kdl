@@ -1,34 +1,24 @@
+// BlueAK Niri config — minimal working baseline
+
 binds {
     Mod+D { spawn "ulauncher-toggle"; }
 }
 
-// Input — trackpad disable-while-typing
 input {
     touchpad {
         tap
-        dwt         // disable-while-typing
-        dwtp        // disable-while-trackpointing
         natural-scroll
     }
 }
 
 // Autostart
 spawn-at-startup "ulauncher" "--hide-window"
-spawn-at-startup "qs" "-c" "noctalia-shell"
-
-window-rule {
-    // Rounded corners for a modern look
-    geometry-corner-radius 20
-    clip-to-geometry true
-}
 
 window-rule {
     match app-id="ulauncher"
     open-floating true
-    draw-border-with-background false
 }
 
-debug {
-    // Allows notification actions and window activation from Noctalia
-    honor-xdg-activation-with-invalid-serial
-}
+// debug {
+//     honor-xdg-activation-with-invalid-serial
+// }

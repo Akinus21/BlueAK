@@ -265,6 +265,7 @@ main() {
         brew_ensure "bitwarden-cli"
         brew_ensure "font-meslo-lg-nerd-font" --cask
         brew_ensure "aktools"
+        brew_ensure "blueak-session-manager"
     fi
 
     # ── 5. Flatpak (Bitwarden) ──────────────────────────────────────────────
