@@ -247,8 +247,8 @@ main() {
     sync_skel ".config/gtk-4.0/settings.ini"
 
     # ── 3. Niri config ─────────────────────────────────────────────────────
-    log "--- Niri config ---"
-    sync_skel ".config/niri/config.kdl"
+    # Niri config is managed directly in /etc/skel — don't overwrite from blueak-init
+    # sync_skel ".config/niri/config.kdl"
 
     # ── 4. Homebrew packages ────────────────────────────────────────────────
     log "--- Homebrew ---"
