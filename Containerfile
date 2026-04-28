@@ -203,6 +203,12 @@ COPY config/nyxt/themes/       /etc/skel/.config/nyxt/themes/
 COPY config/nyxt/set-nyxt-theme /etc/skel/.local/bin/set-nyxt-theme
 RUN chmod +x /etc/skel/.local/bin/set-nyxt-theme
 
+# ── Nyxt theme generation (generate-nyxt-theme.py) ─────────────────────────
+RUN mkdir -p /etc/skel/.local/bin /etc/skel/.config/noctalia/templates
+COPY config/blueak-init/generate-nyxt-theme.py /etc/skel/.local/bin/generate-nyxt-theme.py
+RUN chmod +x /etc/skel/.local/bin/generate-nyxt-theme.py
+COPY config/noctalia/templates/nyxt-trigger.txt /etc/skel/.config/noctalia/templates/nyxt-trigger.txt
+
 # ── Nyxt — Flatpak (with theming + CAC access overrides) ───────────────────
 # Install as flatpak, override filesystem access for ~/.config/gtk-3.0 and ~/.config/gtk-4.0
 # Also override shared-memory-info for CAC card access, xdg-config for themes
