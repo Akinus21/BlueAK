@@ -199,13 +199,8 @@ RUN mkdir -p /etc/skel/.config/gtk-3.0 /etc/skel/.config/gtk-4.0
 COPY config/gtk-3.0/settings.ini /etc/skel/.config/gtk-3.0/settings.ini
 COPY config/gtk-4.0/settings.ini /etc/skel/.config/gtk-4.0/settings.ini
 
-# ── Surf (suckless WebKit browser) ─────────────────────────────────────────
-# Install surf if available, continue if not (may not be in all Fedora variants)
-RUN dnf install -y surf 2>/dev/null || true && dnf clean all
-
-RUN mkdir -p /etc/skel/.surf/styles && \
-    cp config/surf/config.h /etc/skel/.surf/config.h 2>/dev/null || true && \
-    cp config/surf/style.css /etc/skel/.surf/style.css 2>/dev/null || true
+# ── Surf config (suckless WebKit browser) — user-installed at runtime ────────
+RUN mkdir -p /etc/skel/.surf/styles
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 12. Cleanup
