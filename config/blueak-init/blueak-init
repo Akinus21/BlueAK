@@ -175,20 +175,8 @@ main() {
 
 # ── 1. Surf (suckless WebKit browser) ────────────────────────────────────
     log "--- Surf ---"
-    local SURF_DIR="$HOME/.surf"
-    mkdir -p "$SURF_DIR/styles"
     if ! command -v surf &>/dev/null; then
-        log "Surf: building from source..."
-        local SURF_BUILD_DIR=$(mktemp -d)
-        git clone --depth=1 "git://git.suckless.org/surf" "$SURF_BUILD_DIR" 2>/dev/null \
-            && {
-                cp /etc/skel/.surf/config.h "$SURF_BUILD_DIR/config.h" 2>/dev/null || true
-                cd "$SURF_BUILD_DIR" && make clean install 2>/dev/null \
-                    && ok "Surf: built and installed" \
-                    || warn "Surf: build failed"
-            } \
-            || warn "Surf: git clone failed"
-        rm -rf "$SURF_BUILD_DIR"
+        warn "Surf: not found in PATH"
     else
         ok "Surf: present"
     fi
