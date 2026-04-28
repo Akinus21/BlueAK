@@ -325,6 +325,89 @@ main() {
     sync_skel ".p10k.zsh"
     sync_skel "justfile"
 
+    # ── Zsh + Oh-My-Zsh validation ───────────────────────────────────────────
+    log "--- Zsh + Oh-My-Zsh ---"
+    if ! command -v zsh &>/dev/null; then
+        if require_brew; then
+            brew install zsh 2>/dev/null && ok "Zsh: installed" \
+                || warn "Zsh: brew install failed"
+        else
+            warn "Zsh: not found and brew unavailable"
+        fi
+    else
+        ok "Zsh: present"
+    fi
+
+    local OMZ="$HOME/.oh-my-zsh"
+    local OMZ_PLUGINS="$OMZ/custom/plugins"
+    local OMZ_THEMES="$OMZ/custom/themes"
+    mkdir -p "$OMZ_PLUGINS" "$OMZ_THEMES"
+
+    for plugin in zsh-autosuggestions zsh-syntax-highlighting zsh-completions; do
+        if [[ ! -d "$OMZ_PLUGINS/$plugin" ]]; then
+            log "OMZ: cloning $plugin..."
+            git clone --depth=1 "https://github.com/zsh-users/$plugin.git" \
+                "$OMZ_PLUGINS/$plugin" 2>/dev/null \
+                && ok "OMZ: $plugin installed" \
+                || warn "OMZ: $plugin clone failed"
+        else
+            ok "OMZ: $plugin (present)"
+        fi
+    done
+
+    if [[ ! -d "$OMZ_THEMES/powerlevel10k" ]]; then
+        log "OMZ: cloning powerlevel10k..."
+        git clone --depth=1 "https://github.com/romkatv/powerlevel10k.git" \
+            "$OMZ_THEMES/powerlevel10k" 2>/dev/null \
+            && ok "OMZ: powerlevel10k installed" \
+            || warn "OMZ: powerlevel10k clone failed"
+    else
+        ok "OMZ: powerlevel10k (present)"
+    fi
+
+    # ── Noctalia color scheme ───────────────────────────────────────────────
+    log "--- Noctalia color scheme ---"
+    local PURPLE_HAZE_SRC="/etc/skel/.config/noctalia/colorschemes/Purple Haze/Purple Haze.json"
+    local PURPLE_HAZE_DEST="$HOME/.config/noctalia/colorschemes/Purple Haze/Purple Haze.json"
+    mkdir -p "$(dirname "$PURPLE_HAZE_DEST")"
+    if [[ -f "$PURPLE_HAZE_SRC" ]]; then
+        if [[ ! -f "$PURPLE_HAZE_DEST" ]] || ! cmp -s "$PURPLE_HAZE_SRC" "$PURPLE_HAZE_DEST"; then
+            cp "$PURPLE_HAZE_SRC" "$PURPLE_HAZE_DEST" \
+                && ok "Noctalia: Purple Haze installed" \
+                || warn "Noctalia: Purple Haze install failed"
+        else
+            ok "Noctalia: Purple Haze (current)"
+        fi
+    else
+        warn "Noctalia: Purple Haze source not in skel"
+    fi
+
+    # ── Noctalia plugin repositories ────────────────────────────────────────
+    log "--- Noctalia plugin repos ---"
+    local SETTINGS_FILE="$HOME/.config/noctalia/settings.json"
+    if [[ -f "$SETTINGS_FILE" ]]; then
+        if grep -q "pluginRepositories" "$SETTINGS_FILE" 2>/dev/null; then
+            ok "Noctalia: plugin repos (present)"
+        else
+            log "Noctalia: adding plugin repos..."
+            python3 -c "
+import json, sys
+with open('$SETTINGS_FILE', 'r') as f:
+    data = json.load(f)
+data['pluginRepositories'] = [
+    'https://github.com/Akinus21/noctalia-plugins',
+    'https://github.com/noctalia-dev/noctalia-plugins'
+]
+with open('$SETTINGS_FILE', 'w') as f:
+    json.dump(data, f, indent=2)
+" 2>/dev/null \
+                && ok "Noctalia: plugin repos added" \
+                || warn "Noctalia: plugin repos update failed"
+        fi
+    else
+        warn "Noctalia: settings.json not found"
+    fi
+
     # ── Always: ensure all tracked services are running ────────────────────
     log "--- Service health ---"
     systemctl --user start ollama 2>/dev/null || true
