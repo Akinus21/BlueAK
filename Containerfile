@@ -196,38 +196,12 @@ RUN mkdir -p /etc/skel/.config/gtk-3.0 /etc/skel/.config/gtk-4.0
 COPY config/gtk-3.0/settings.ini /etc/skel/.config/gtk-3.0/settings.ini
 COPY config/gtk-4.0/settings.ini /etc/skel/.config/gtk-4.0/settings.ini
 
-# ── Eldritch Theme — Nyxt ───────────────────────────────────────────────────
-RUN mkdir -p /etc/skel/.config/nyxt/themes
-COPY config/nyxt/config.lisp /etc/skel/.config/nyxt/config.lisp
-COPY config/nyxt/themes/       /etc/skel/.config/nyxt/themes/
-COPY config/nyxt/set-nyxt-theme /etc/skel/.local/bin/set-nyxt-theme
-RUN chmod +x /etc/skel/.local/bin/set-nyxt-theme
-
-# ── Nyxt theme generation (generate-nyxt-theme.py) ─────────────────────────
-RUN mkdir -p /etc/skel/.local/bin /etc/skel/.config/noctalia/templates
-COPY config/blueak-init/generate-nyxt-theme.py /etc/skel/.local/bin/generate-nyxt-theme.py
-RUN chmod +x /etc/skel/.local/bin/generate-nyxt-theme.py
-COPY config/noctalia/templates/nyxt-trigger.txt /etc/skel/.config/noctalia/templates/nyxt-trigger.txt
-
-# ── Nyxt — Flatpak (with theming + CAC access overrides) ───────────────────
-# Install as flatpak, override filesystem access for ~/.config/gtk-3.0 and ~/.config/gtk-4.0
-# Also override shared-memory-info for CAC card access, xdg-config for themes
-RUN flatpak install -y flathub engineer.atlas.Nyxt && \
-    flatpak override engineer.atlas.Nyxt \
-        --filesystem=home/.config/gtk-3.0:ro \
-        --filesystem=home/.config/gtk-4.0:ro \
-        --filesystem=home/.config/noctalia:ro \
-        --filesystem=xdg-config/gtk-3.0:ro \
-        --filesystem=xdg-config/gtk-4.0:ro \
-        --filesystem=xdg-config/KDEGlobals:rw \
-        --device=all \
-        --talk-name=org.freedesktop.secrets \
-        --talk-name=org.freedesktop.Notifications \
-        --env=LIBSEAL_BAD=1 2>/dev/null || true
-
-# ── Nyxt — .desktop entry + MIME types ──────────────────────────────────────
-COPY config/nyxt/nyxt.desktop /usr/share/applications/nyxt.desktop
-RUN update-desktop-database /usr/share/applications/ 2>/dev/null || true
+# ── Surf (suckless WebKit browser) ─────────────────────────────────────────
+RUN dnf install -y webkit2gtk4.1-devel gtk3-devel gstreamer1-plugins-base && \
+    mkdir -p /etc/skel/.surf/styles && \
+    touch /etc/skel/.surf/styles/default.css
+COPY config/surf/config.h /etc/skel/.surf/config.h
+COPY config/surf/style.css /etc/skel/.surf/style.css
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 12. Cleanup

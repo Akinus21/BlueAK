@@ -139,9 +139,6 @@ main() {
     rm -f "$HOME/.config/systemd/user/noctalia-gtk.service"
     rm -f "$HOME/.config/systemd/user/noctalia-gtk.service.bak"
 
-    # Cleanup: orphaned flatpak ref (old Nyxt app ID)
-    flatpak uninstall --user -y org.nyxt.Nyxt 2>/dev/null || true
-
     # Cleanup: stray Noctalia colors at root level
     rm -f "$HOME/.config/noctalia/purple-haze.json"
     rm -f "$HOME/.config/noctalia/midnight-cherry.json"
@@ -176,80 +173,27 @@ main() {
         disown $ZENITY_PID 2>/dev/null || true
     fi
 
-    # ── 1. Nyxt ─────────────────────────────────────────────────────────────
-    log "--- Nyxt ---"
-    if ! flatpak list --user --app 2>/dev/null | grep -q "engineer.atlas.Nyxt"; then
-        log "Nyxt: installing flatpak..."
-        flatpak install --user -y flathub engineer.atlas.Nyxt 2>&1 \
-            && ok "Nyxt: flatpak installed" \
-            || { warn "Nyxt: flatpak install failed"
-                 flatpak install --user -y flathub engineer.atlas.Nyxt 2>&1 \
-                     || warn "Nyxt: retry also failed"; }
-        flatpak override engineer.atlas.Nyxt \
-            --filesystem=home/.config/gtk-3.0:ro \
-            --filesystem=home/.config/gtk-4.0:ro \
-            --filesystem=home/.config/noctalia:ro \
-            --filesystem=xdg-config/gtk-3.0:ro \
-            --filesystem=xdg-config/gtk-4.0:ro \
-            --filesystem=xdg-config/KDEGlobals:rw \
-            --device=all \
-            --talk-name=org.freedesktop.secrets \
-            --talk-name=org.freedesktop.Notifications \
-            --env=LIBSEAL_BAD=1 2>/dev/null \
-            && ok "Nyxt: flatpak overrides applied" \
-            || warn "Nyxt: flatpak override failed"
+# ── 1. Surf (suckless WebKit browser) ────────────────────────────────────
+    log "--- Surf ---"
+    local SURF_DIR="$HOME/.surf"
+    mkdir -p "$SURF_DIR/styles"
+    if ! command -v surf &>/dev/null; then
+        log "Surf: building from source..."
+        local SURF_BUILD_DIR=$(mktemp -d)
+        git clone --depth=1 "git://git.suckless.org/surf" "$SURF_BUILD_DIR" 2>/dev/null \
+            && {
+                cp /etc/skel/.surf/config.h "$SURF_BUILD_DIR/config.h" 2>/dev/null || true
+                cd "$SURF_BUILD_DIR" && make clean install 2>/dev/null \
+                    && ok "Surf: built and installed" \
+                    || warn "Surf: build failed"
+            } \
+            || warn "Surf: git clone failed"
+        rm -rf "$SURF_BUILD_DIR"
     else
-        ok "Nyxt: flatpak present"
+        ok "Surf: present"
     fi
-    sync_skel ".config/nyxt/config.lisp"
-    local THEMES_DIR="$HOME/.config/nyxt/themes"
-    mkdir -p "$THEMES_DIR"
-    for theme_src in /etc/skel/.config/nyxt/themes/*.json; do
-        [[ -f "$theme_src" ]] || continue
-        local theme_name=$(basename "$theme_src")
-        local theme_dest="$THEMES_DIR/$theme_name"
-        if [[ ! -f "$theme_dest" ]] || ! cmp -s "$theme_src" "$theme_dest"; then
-            cp "$theme_src" "$theme_dest" \
-                && ok "Nyxt: theme $theme_name updated" \
-                || warn "Nyxt: failed to update theme $theme_name"
-        else
-            ok "Nyxt: theme $theme_name (current)"
-        fi
-    done
-    sync_skel ".local/bin/set-nyxt-theme"
-    chmod +x "$HOME/.local/bin/set-nyxt-theme" 2>/dev/null || true
-
-    if [[ ! -f "$HOME/.local/bin/generate-nyxt-theme.py" ]]; then
-        log "Noctalia: installing generate-nyxt-theme.py..."
-        cp /etc/skel/.local/bin/generate-nyxt-theme.py "$HOME/.local/bin/generate-nyxt-theme.py" 2>/dev/null \
-            && chmod +x "$HOME/.local/bin/generate-nyxt-theme.py" \
-            && ok "Noctalia: generate-nyxt-theme.py installed" \
-            || warn "Noctalia: generate-nyxt-theme.py copy failed"
-    else
-        ok "Noctalia: generate-nyxt-theme.py (present)"
-    fi
-    local NYXT_THEME_MARKER="$THEMES_DIR/current"
-    if [[ ! -f "$NYXT_THEME_MARKER" ]]; then
-        if command -v set-nyxt-theme &>/dev/null; then
-            set-nyxt-theme noctalia && ok "Nyxt: theme (noctalia) applied"
-        elif [[ -x "$HOME/.local/bin/set-nyxt-theme" ]]; then
-            python3 "$HOME/.local/bin/set-nyxt-theme" noctalia && ok "Nyxt: theme (noctalia) applied"
-        fi
-    fi
-    local NYXT_DESKTOP_SRC="/usr/share/applications/nyxt.desktop"
-    local NYXT_DESKTOP_USR="$HOME/.local/share/applications/nyxt.desktop"
-    if [[ -f "$NYXT_DESKTOP_SRC" ]]; then
-        if [[ ! -f "$NYXT_DESKTOP_USR" ]] || ! cmp -s "$NYXT_DESKTOP_SRC" "$NYXT_DESKTOP_USR"; then
-            cp "$NYXT_DESKTOP_SRC" "$NYXT_DESKTOP_USR" \
-                && ok "Nyxt: .desktop installed" \
-                || warn "Nyxt: .desktop install failed"
-        fi
-    fi
-    if command -v update-desktop-database &>/dev/null; then
-        update-desktop-database "$HOME/.local/share/applications/" 2>/dev/null \
-            && ok "Nyxt: desktop database refreshed" \
-            || warn "Nyxt: desktop database refresh failed"
-    fi
+    sync_skel ".surf/config.h"
+    sync_skel ".surf/style.css"
 
     # ── 2. GTK themes (Eldritch) ─────────────────────────────────────────────
     log "--- GTK themes (Eldritch) ---"
@@ -433,40 +377,6 @@ with open('$SETTINGS_FILE', 'w') as f:
         fi
     else
         warn "Noctalia: wallpaper source not in skel"
-    fi
-
-    # ── Noctalia user templates (Nyxt theme generation) ─────────────────────
-    log "--- Noctalia user templates ---"
-    local TEMPLATES_DIR="$HOME/.config/noctalia/templates"
-    local USER_TEMPLATES="$HOME/.config/noctalia/user-templates.toml"
-    mkdir -p "$TEMPLATES_DIR"
-
-    local NYXT_TRIGGER_SRC="/etc/skel/.config/noctalia/templates/nyxt-trigger.txt"
-    local NYXT_TRIGGER_DEST="$TEMPLATES_DIR/nyxt-trigger.txt"
-    if [[ -f "$NYXT_TRIGGER_SRC" ]]; then
-        if [[ ! -f "$NYXT_TRIGGER_DEST" ]] || ! cmp -s "$NYXT_TRIGGER_SRC" "$NYXT_TRIGGER_DEST"; then
-            cp "$NYXT_TRIGGER_SRC" "$NYXT_TRIGGER_DEST" \
-                && ok "Noctalia: nyxt-trigger.txt installed" \
-                || warn "Noctalia: nyxt-trigger.txt install failed"
-        else
-            ok "Noctalia: nyxt-trigger.txt (current)"
-        fi
-    fi
-
-    if [[ -f "$USER_TEMPLATES" ]] && grep -q "templates.nyxt" "$USER_TEMPLATES" 2>/dev/null; then
-        ok "Noctalia: user-templates.toml nyxt entry (present)"
-    else
-        log "Noctalia: adding nyxt template to user-templates.toml..."
-        mkdir -p "$(dirname "$USER_TEMPLATES")"
-        cat >> "$USER_TEMPLATES" << 'TEMPLATEEOF'
-
-[templates.nyxt]
-input_path  = "/var/home/gabriel/.config/noctalia/templates/nyxt-trigger.txt"
-output_path = "/var/home/gabriel/.cache/noctalia/nyxt-trigger.txt"
-post_hook   = "/usr/bin/python3 /var/home/gabriel/.local/bin/generate-nyxt-theme.py >> /tmp/nyxt-theme.log 2>&1 && echo 'hook ran' >> /tmp/nyxt-theme.log"
-TEMPLATEEOF
-        ok "Noctalia: user-templates.toml nyxt entry added" \
-            || warn "Noctalia: user-templates.toml nyxt entry failed"
     fi
 
     # ── Always: ensure all tracked services are running ────────────────────

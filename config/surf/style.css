@@ -1,0 +1,152 @@
+/* surf/style.css — Purple Haze theme for surf
+ * Synced from Noctalia Purple Haze color scheme
+ * Dark mode: surface #180C24, foreground #E0DCF0, accent #A8E000
+ */
+
+html, body {
+    background-color: #180C24 !important;
+    color: #E0DCF0 !important;
+}
+
+html, body, pre, code, kbd {
+    font-family: "MesloLGS Nerd Font", "SF Mono", "Consolas", monospace !important;
+    font-size: 12px !important;
+}
+
+pre, code, kbd {
+    background-color: #241330 !important;
+    color: #E0DCF0 !important;
+    border-radius: 3px;
+    padding: 2px 6px;
+}
+
+blockquote {
+    background-color: #241330 !important;
+    border-left: 3px solid #8A4FB0 !important;
+    padding: 8px 12px !important;
+    margin: 4px 0 !important;
+    color: #E0DCF0 !important;
+}
+
+table {
+    background-color: #241330 !important;
+    color: #E0DCF0 !important;
+    border-collapse: collapse !important;
+    width: 100% !important;
+}
+
+th {
+    background-color: #301460 !important;
+    color: #A8E000 !important;
+    padding: 6px 10px !important;
+    text-align: left !important;
+}
+
+td {
+    border-color: #241330 !important;
+    padding: 4px 10px !important;
+}
+
+hr {
+    border-color: #241330 !important;
+    border-width: 1px !important;
+    border-style: solid !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: #A8E000 !important;
+    font-weight: 600 !important;
+    margin: 12px 0 8px !important;
+}
+
+h1 { font-size: 1.6em !important; }
+h2 { font-size: 1.4em !important; }
+h3 { font-size: 1.2em !important; }
+h4, h5, h6 { font-size: 1.1em !important; }
+
+a:link {
+    color: #A8E000 !important;
+    text-decoration: none !important;
+}
+
+a:visited {
+    color: #AA7AD0 !important;
+    text-decoration: none !important;
+}
+
+a:hover {
+    color: #9878C0 !important;
+    text-decoration: underline !important;
+}
+
+input, textarea, select {
+    background-color: #241330 !important;
+    color: #E0DCF0 !important;
+    border: 1px solid #8A4FB0 !important;
+    border-radius: 3px !important;
+    padding: 4px 8px !important;
+}
+
+input:focus, textarea:focus, select:focus {
+    border-color: #A8E000 !important;
+    outline: none !important;
+}
+
+button, input[type=submit], input[type=button] {
+    background-color: #241330 !important;
+    color: #E0DCF0 !important;
+    border: 1px solid #8A4FB0 !important;
+    border-radius: 3px !important;
+    padding: 4px 12px !important;
+    cursor: pointer !important;
+}
+
+button:hover, input[type=submit]:hover, input[type=button]:hover {
+    background-color: #301460 !important;
+    border-color: #A8E000 !important;
+}
+
+::selection {
+    background-color: #4E2478 !important;
+    color: #F0ECFF !important;
+}
+
+::-webkit-scrollbar {
+    background-color: #180C24 !important;
+    width: 8px !important;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: #241330 !important;
+    border-radius: 4px !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: #8A4FB0 !important;
+}
+
+img, video {
+    opacity: 0.9 !important;
+    max-width: 100% !important;
+    height: auto !important;
+}
+
+/* Scrollbar track */
+::-webkit-scrollbar-track {
+    background: #180C24 !important;
+}
+
+/* Form focus glow */
+input:focus, textarea:focus {
+    box-shadow: 0 0 4px #A8E00040 !important;
+}
+
+/* Links underline on hover */
+a:hover {
+    text-decoration: underline !important;
+}
+
+/* Cursor blink color */
+:root {
+    caret-color: #A8E000 !important;
+}
