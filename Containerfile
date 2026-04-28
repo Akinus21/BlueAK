@@ -27,7 +27,8 @@ RUN dnf install -y \
 
 # Noctalia Shell — via Terra repo (Fyra Labs)
 # https://docs.noctalia.dev/getting-started/installation
-RUN dnf install -y --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release && \
+RUN dnf install -y --nogpgcheck "https://repos.fyralabs.com/terra/f41.repo" 2>/dev/null || \
+    (dnf install -y dnf-plugins-core && dnf config-manager --add-repo "https://repos.fyralabs.com/terra/terra.repo") 2>/dev/null || true && \
     dnf install -y noctalia-shell || echo "Terra repo unavailable — install noctalia-shell at runtime"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -200,11 +201,12 @@ COPY config/gtk-3.0/settings.ini /etc/skel/.config/gtk-3.0/settings.ini
 COPY config/gtk-4.0/settings.ini /etc/skel/.config/gtk-4.0/settings.ini
 
 # ── Surf (suckless WebKit browser) ─────────────────────────────────────────
-RUN dnf install -y surf && dnf clean all
+# Install surf if available, continue if not (may not be in all Fedora variants)
+RUN dnf install -y surf 2>/dev/null || true && dnf clean all
 
 RUN mkdir -p /etc/skel/.surf/styles
-COPY config/surf/config.h /etc/skel/.surf/config.h
-COPY config/surf/style.css /etc/skel/.surf/style.css
+COPY config/surf/config.h /etc/skel/.surf/config.h 2>/dev/null || true
+COPY config/surf/style.css /etc/skel/.surf/style.css 2>/dev/null || true
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 12. Cleanup

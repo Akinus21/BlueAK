@@ -176,12 +176,12 @@ main() {
 # ── 1. Surf (suckless WebKit browser) ────────────────────────────────────
     log "--- Surf ---"
     if ! command -v surf &>/dev/null; then
-        warn "Surf: not found in PATH"
+        warn "Surf: not found"
     else
         ok "Surf: present"
     fi
-    sync_skel ".surf/config.h"
-    sync_skel ".surf/style.css"
+    sync_skel ".surf/config.h" 2>/dev/null || true
+    sync_skel ".surf/style.css" 2>/dev/null || true
 
     # ── 2. GTK themes (Eldritch) ─────────────────────────────────────────────
     log "--- GTK themes (Eldritch) ---"
