@@ -27,8 +27,7 @@ RUN dnf install -y \
 
 # Noctalia Shell — via Terra repo (Fyra Labs)
 # https://docs.noctalia.dev/getting-started/installation
-RUN dnf install -y --nogpgcheck "https://repos.fyralabs.com/terra/f41.repo" 2>/dev/null || \
-    (dnf install -y dnf-plugins-core && dnf config-manager --add-repo "https://repos.fyralabs.com/terra/terra.repo") 2>/dev/null || true && \
+RUN dnf install -y "https://repos.fyralabs.com/terra-repo-release.rpm" 2>/dev/null || true && \
     dnf install -y noctalia-shell || echo "Terra repo unavailable — install noctalia-shell at runtime"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
