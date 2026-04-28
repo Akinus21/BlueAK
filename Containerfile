@@ -21,7 +21,7 @@ RUN dnf install -y \
     earlyoom \
     libreoffice \
     okular \
-    v4l2loopback-dkms \
+    v4l2loopback \
     scrcpy \
     adb
 
