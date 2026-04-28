@@ -21,9 +21,7 @@ RUN dnf install -y \
     earlyoom \
     libreoffice \
     okular \
-    v4l2loopback \
-    scrcpy \
-    adb
+    android-tools
 
 # Noctalia Shell — via Terra repo (Fyra Labs)
 # https://docs.noctalia.dev/getting-started/installation
