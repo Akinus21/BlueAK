@@ -200,20 +200,7 @@ COPY config/gtk-3.0/settings.ini /etc/skel/.config/gtk-3.0/settings.ini
 COPY config/gtk-4.0/settings.ini /etc/skel/.config/gtk-4.0/settings.ini
 
 # ── Surf (suckless WebKit browser) ─────────────────────────────────────────
-# Build surf at build time, then remove devel packages to save space.
-RUN dnf install -y --setopt=install_weak_deps=False \
-        webkit2gtk4.1 \
-        gtk3 \
-        gstreamer1-plugins-base \
-        webkit2gtk4.1-devel \
-        gtk3-devel \
-        gstreamer1-plugins-base-devel \
-    && git clone --depth=1 "git://git.suckless.org/surf" /tmp/surf \
-    && cp /tmp/surf/config.h /tmp/surf/config.def.h \
-    && make -C /tmp/surf clean install \
-    && rm -rf /tmp/surf \
-    && dnf remove -y webkit2gtk4.1-devel gtk3-devel gstreamer1-plugins-base-devel \
-    && dnf clean all
+RUN dnf install -y surf && dnf clean all
 
 RUN mkdir -p /etc/skel/.surf/styles
 COPY config/surf/config.h /etc/skel/.surf/config.h
