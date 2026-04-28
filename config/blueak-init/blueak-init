@@ -408,6 +408,23 @@ with open('$SETTINGS_FILE', 'w') as f:
         warn "Noctalia: settings.json not found"
     fi
 
+    # ── Noctalia wallpaper ────────────────────────────────────────────────────
+    log "--- Noctalia wallpaper ---"
+    local WALLPAPER_SRC="/etc/skel/.config/noctalia/noctalia_purple_haze.png"
+    local WALLPAPER_DEST="$HOME/.config/noctalia/wallpapers/noctalia_purple_haze.png"
+    mkdir -p "$(dirname "$WALLPAPER_DEST")"
+    if [[ -f "$WALLPAPER_SRC" ]]; then
+        if [[ ! -f "$WALLPAPER_DEST" ]] || ! cmp -s "$WALLPAPER_SRC" "$WALLPAPER_DEST"; then
+            cp "$WALLPAPER_SRC" "$WALLPAPER_DEST" \
+                && ok "Noctalia: wallpaper installed" \
+                || warn "Noctalia: wallpaper install failed"
+        else
+            ok "Noctalia: wallpaper (current)"
+        fi
+    else
+        warn "Noctalia: wallpaper source not in skel"
+    fi
+
     # ── Always: ensure all tracked services are running ────────────────────
     log "--- Service health ---"
     systemctl --user start ollama 2>/dev/null || true

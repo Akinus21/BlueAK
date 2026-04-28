@@ -1,0 +1,5 @@
+[wallpaper]
+enabled      = true
+directory    = "~/.config/noctalia/wallpapers"
+fill_mode    = "fit"
+fill_color   = "#180C24"
