@@ -81,8 +81,6 @@ RUN DOD_CERT_URL="https://dl.dod.cyber.mil/wp-content/uploads/pki-pke/zip/unclas
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RUN dnf install -y \
     zsh \
-    zsh-autosuggestions \
-    zsh-syntax-highlighting \
     fzf \
     eza \
     bat \
