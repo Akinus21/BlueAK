@@ -20,7 +20,10 @@ RUN dnf install -y \
     swaybg \
     earlyoom \
     libreoffice \
-    okular
+    okular \
+    v4l2loopback-dkms \
+    scrcpy \
+    adb
 
 # Noctalia Shell — via Terra repo (Fyra Labs)
 # https://docs.noctalia.dev/getting-started/installation
