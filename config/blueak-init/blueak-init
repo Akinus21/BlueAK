@@ -367,6 +367,36 @@ with open('$SETTINGS_FILE', 'w') as f:
         warn "Noctalia: wallpaper source not in skel"
     fi
 
+    # ── Noctalia plugins (Akinus21/noctalia-plugins) ────────────────────────
+    log "--- Noctalia plugins ---"
+    local PLUGINS_DIR="$HOME/.config/noctalia/plugins"
+    local PLUGINS_REPO="https://github.com/Akinus21/noctalia-plugins.git"
+    local DEFAULT_PLUGINS=("niri-keybinds" "linkding" "bitwarden")
+    mkdir -p "$PLUGINS_DIR"
+
+    for plugin in "${DEFAULT_PLUGINS[@]}"; do
+        local PLUGIN_PATH="$PLUGINS_DIR/$plugin"
+        local PLUGIN_TMP
+        if [[ -d "$PLUGIN_PATH" ]]; then
+            ok "Noctalia plugin: $plugin (present)"
+        else
+            log "Noctalia: installing plugin '$plugin'..."
+            PLUGIN_TMP=$(mktemp -d)
+            if git clone --filter=blob:none --no-checkout --depth=1 "$PLUGINS_REPO" "$PLUGIN_TMP" 2>/dev/null; then
+                cd "$PLUGIN_TMP" && \
+                    git sparse-checkout set --no-cone "$plugin" && \
+                    git checkout && \
+                    cp -r "$PLUGIN_TMP/$plugin" "$PLUGIN_PATH" && \
+                    ok "Noctalia plugin: $plugin installed" || \
+                    warn "Noctalia plugin: $plugin sparse checkout failed"
+            else
+                warn "Noctalia plugin: $plugin clone failed"
+            fi
+            cd /
+            rm -rf "$PLUGIN_TMP"
+        fi
+    done
+
     # ── Always: ensure all tracked services are running ────────────────────
     log "--- Service health ---"
     systemctl --user start ollama 2>/dev/null || true
