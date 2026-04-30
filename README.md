@@ -1,16 +1,92 @@
 # BlueAK
 
-A Universal Blue bootc image template that builds an OCI image and bootable disk images (ISO, qcow2, raw). Based on [Bluefin](https://projectbluefin.io/), it provides a refined keyboard-centric desktop experience with the [Niri](https://github.com/niri-wm/niri) compositor, [Noctalia shell](https://noctalia.dev), [Nyxt](https://nyxt.atlascode.dev) browser. 
+A Universal Blue bootc image template that builds an OCI image and bootable disk images (ISO, qcow2, raw). Based on [Bluefin](https://projectbluefin.io/), it provides a refined keyboard-centric desktop experience with the [Niri](https://github.com/niri-wm/niri) compositor and [Noctalia Shell](https://noctalia.dev).
 
-## What It Includes
+## What's Included
 
-- **Noctalia Shell** — desktop shell with live theme sync
-- **Nyxt Browser** — flatpak with GTK/CAC filesystem overrides
-- **CAC Smart Card Support** — pcscd, OpenSC, NSS db, Firefox, Okular PKCS#11
-- **Ollama** — local LLM server (user systemd service)
-- **AkTags** — tag-based file browser
-- **Homebrew** — curated CLI packages (git-delta, gh, atuin, yazi, trivy, etc.)
-- **Custom Theme** — unified dark color palette for Noctalia and supported applications
+### In the Image (Containerfile)
+
+**Desktop & Window Management**
+- [Niri](https://github.com/niri-wm/niri) — scrollable workspace compositor
+- [Ulauncher](https://ulauncher.io) — application launcher
+- [Alacritty](https://alacritty.org) — GPU-accelerated terminal
+- `swaybg` — wallpaper daemon
+- `earlyoom` — early OOM killer
+
+**Productivity**
+- LibreOffice — office suite
+- Okular — PDF viewer
+- `android-tools` (adb)
+
+**Shell & CLI**
+- Zsh + [Oh-My-Zsh](https://ohmyz.sh) + [Powerlevel10k](https://github.com/romkatv/powerlevel10k)
+- Zsh plugins: autosuggestions, syntax-highlighting, completions
+- `fzf`, `eza`, `bat`, `zoxide`, `btop`, `fd-find`, `ripgrep`, `just`, `git`
+- Python 3 + pip + virtualenv
+- `tesseract` + langpack (OCR)
+- `poppler-utils`, `odt2txt` (document conversion)
+
+**Smart Card / CAC Support**
+- `pcsc-lite`, `pcsc-lite-ccid`, `pcsc-tools`, `OpenSC`, `nss-tools`, `p11-kit`
+- DoD PKI CA certificates installed to system trust store
+
+**Noctalia Shell**
+- `noctalia-shell` + `matugen` (from Terra/Fyra Labs repo)
+- Purple Haze color scheme + wallpaper seeded to `/etc/skel/.config/noctalia/`
+- Noctalia plugin repos: `Akinus21/noctalia-plugins` + `noctalia-dev/noctalia-plugins`
+
+**LLM / AI**
+- [Ollama](https://ollama.ai) — local LLM server (user systemd service)
+- [OpenCode CLI](https://opencode.ai) — AI coding assistant
+
+**Session & State**
+- `nirinit` — session restore utility
+- `blueak-init` — bootstrap script (systemd user service)
+- `bootc-fetch-apply-updates` — staged updates, nightly reboot at 3 AM
+
+**Theme (Eldritch)**
+- GTK3/4 dark theme via Adwaita-dark + color overrides
+- Eldritch color palette for terminal (P10k)
+
+### After Boot (blueak-init)
+
+Runs on every login via systemd user service. Installs / updates:
+
+**CLI Packages (Homebrew + npm)**
+| Package | Source |
+|---------|--------|
+| lazygit, git-delta, gh, gitleaks | Homebrew |
+| atuin, tmux, tldr | Homebrew |
+| jq, yq, xh | Homebrew |
+| trivy, grype | Homebrew |
+| yazi, duf, dust, age | Homebrew |
+| aktags | Homebrew (Akinus21/tap) |
+| bitwarden-cli | Homebrew |
+| blueak-session-manager | Homebrew (Akinus21/tap) |
+| aktools | Homebrew (Akinus21/tap) |
+| @bitwarden/cli | npm |
+
+**Flatpak**
+- Bitwarden Desktop (flathub)
+
+**System Services**
+- Ollama — started and enabled
+- AkTags daemon — desktop autostart entry
+
+**Noctalia Plugins** (git sparse-checkout from `Akinus21/noctalia-plugins`)
+- `niri-keybinds` — Niri keybindings
+- `linkding` — bookmark manager plugin
+- `bitwarden` — Bitwarden integration plugin
+
+**Config Sync** (from `/etc/skel` to `~`)
+- Zsh config (`.zshrc`, `.p10k.zsh`)
+- Justfile
+- GTK settings (Eldritch dark)
+- Surf config (`.surf/config.h`, `.surf/style.css`)
+- Noctalia color scheme (Purple Haze)
+- Noctalia wallpaper
+
+**CAC Setup** — runs `/etc/skel/.local/bin/cac-setup`
 
 ## Building
 
@@ -58,33 +134,14 @@ just build-iso     # Bootable ISO
 just build-raw     # Raw disk image
 ```
 
-## Theme System
-
-BlueAK uses the **Eldritch** dark theme (Purple Haze variant) as its default. The theme is applied through:
-
-- **Noctalia** — reads `~/.config/noctalia/colors.json` for the active theme; `~/.config/noctalia/colorschemes/` for the GUI picker
-- **Noctalia-gtk** — syncs Noctalia colors to system GTK theme
-- **Nyxt** — uses `set-nyxt-theme` script to match browser colors to the active Noctalia theme
-- **GTK3/4** — `settings.ini` files in `config/gtk-3.0/` and `config/gtk-4.0/`
-- **Terminal** — P10k zsh config with Eldritch colors
-
-To change the Nyxt theme, run:
-```bash
-set-nyxt-theme <theme-name>   # eldritch, purple-haze, dracula, nord, noctalia
-```
-
 ## First Login
 
-On first login, `blueak-init` (triggered via systemd user service) runs:
+On first login, `blueak-init` runs automatically via systemd user service.
 
-1. Seeds Noctalia color schemes to `~/.config/noctalia/`
-2. Installs Nyxt flatpak with CAC/filesystem overrides
-3. Enables AkTags daemon, Ollama
-4. Installs Homebrew packages
-5. Runs CAC smart card setup
-6. Sets default Nyxt theme (synced to Noctalia)
-
-To force re-run: `rm ~/.local/share/blueak/.first-run-done && systemctl --user start blueak-init`
+To force re-run:
+```bash
+rm ~/.local/share/blueak/.sync-done && systemctl --user start blueak-init
+```
 
 ## Repository Structure
 
@@ -92,9 +149,8 @@ To force re-run: `rm ~/.local/share/blueak/.first-run-done && systemctl --user s
 config/
   blueak-init/       # First-login bootstrap script
   cac/               # Smart card setup script
-  noctalia/          # Noctalia configs + color schemes
+  noctalia/          # Noctalia configs + color schemes + wallpaper
   niri/              # Compositor configuration
-  nyxt/              # Browser config + themes
   systemd/user/      # User systemd services
   zsh/               # Zshrc + powerlevel10k
 build_files/
