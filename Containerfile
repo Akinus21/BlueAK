@@ -151,6 +151,9 @@ RUN systemctl enable bootc-nightly-reboot.timer
 COPY config/systemd/aktags-daemon.service /etc/skel/.config/systemd/user/aktags-daemon.service
 COPY config/aktags/aktags.desktop /etc/skel/.config/autostart/aktags.desktop
 
+# ── AKSpraypainter — theme-to-wallpaper color sync (planned) ────────────────
+# TODO: Add AKSpraypainter binary once available
+
 # ── Noctalia color config seed ────────────────────────────────────────────────
 RUN mkdir -p /etc/skel/.config/noctalia
 COPY config/noctalia/ /etc/skel/.config/noctalia/

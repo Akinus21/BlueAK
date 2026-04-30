@@ -39,6 +39,9 @@ A Universal Blue bootc image template that builds an OCI image and bootable disk
 - [Ollama](https://ollama.ai) — local LLM server (user systemd service)
 - [OpenCode CLI](https://opencode.ai) — AI coding assistant
 
+**Tools (planned)**
+- [AKSpraypainter](https://github.com/Akinus21/akspraypainter) — syncs Noctalia theme colors to wallpaper (planned)
+
 **Session & State**
 - `nirinit` — session restore utility
 - `blueak-init` — bootstrap script (systemd user service)
@@ -61,6 +64,7 @@ Runs on every login via systemd user service. Installs / updates:
 | trivy, grype | Homebrew |
 | yazi, duf, dust, age | Homebrew |
 | aktags | Homebrew (Akinus21/tap) |
+| iron-browser | Homebrew |
 | bitwarden-cli | Homebrew |
 | blueak-session-manager | Homebrew (Akinus21/tap) |
 | aktools | Homebrew (Akinus21/tap) |

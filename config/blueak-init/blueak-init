@@ -205,6 +205,7 @@ main() {
         for pkg in yazi duf dust age; do brew_ensure "$pkg"; done
         brew_ensure "aktags"
         brew_ensure "bitwarden-cli"
+        brew_ensure "iron-browser"
         brew_ensure "font-meslo-lg-nerd-font" --cask
         brew_ensure "aktools"
         brew_ensure "blueak-session-manager"
@@ -228,13 +229,22 @@ main() {
     # ── 5b. Bitwarden CLI (npm) ────────────────────────────────────────────
     log "--- Bitwarden CLI ---"
     if ! command -v bw &>/dev/null; then
-        log "Installing Bitwarden CLI..."
-        if npm config --global set prefix /usr/local 2>/dev/null && \
-           HOME=/tmp npm install -g @bitwarden/cli 2>&1 | tee -a "$LOG_FILE" | tail -5 | grep -qi "error"; then
-            warn "bw npm install failed"
+        log "Bitwarden CLI: installing..."
+        local BW_TMP
+        BW_TMP=$(mktemp)
+        if HOME=/tmp npm config --global set prefix /usr/local 2>/dev/null && \
+           HOME=/tmp npm install -g @bitwarden/cli --loglevel=error 2>"$BW_TMP"; then
+            if grep -qi "error" "$BW_TMP" 2>/dev/null; then
+                warn "Bitwarden CLI: npm reported errors (see init.log)"
+                cat "$BW_TMP" >> "$BLUEAK_LOG" 2>/dev/null
+            else
+                ok "Bitwarden CLI installed"
+            fi
         else
-            ok "Bitwarden CLI installed"
+            warn "Bitwarden CLI: npm install failed"
+            cat "$BW_TMP" >> "$BLUEAK_LOG" 2>/dev/null
         fi
+        rm -f "$BW_TMP"
     else
         ok "Bitwarden CLI: present"
     fi
