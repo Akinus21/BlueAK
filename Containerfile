@@ -101,8 +101,8 @@ RUN dnf install -y \
 # /usr/local is a file in the base image — clean it up before use
 # HOME=/tmp needed since /root is also a file in the base image
 RUN rm -rf /usr/local && mkdir -p /usr/local/bin && \
-    HOME=/tmp npm install -g opencode-ai && \
-    HOME=/tmp npm install -g @bitwarden/cli
+    HOME=/tmp npm config --global set prefix /usr/local && \
+    HOME=/tmp npm install -g opencode-ai @bitwarden/cli
 
 RUN sed -i 's|^SHELL=.*|SHELL=/bin/zsh|' /etc/default/useradd 2>/dev/null || \
     echo 'SHELL=/bin/zsh' >> /etc/default/useradd
