@@ -225,6 +225,20 @@ main() {
         ok "Bitwarden present"
     fi
 
+    # ── 5b. Bitwarden CLI (npm) ────────────────────────────────────────────
+    log "--- Bitwarden CLI ---"
+    if ! command -v bw &>/dev/null; then
+        log "Installing Bitwarden CLI..."
+        if npm config --global set prefix /usr/local 2>/dev/null && \
+           HOME=/tmp npm install -g @bitwarden/cli 2>&1 | tee -a "$LOG_FILE" | tail -5 | grep -qi "error"; then
+            warn "bw npm install failed"
+        else
+            ok "Bitwarden CLI installed"
+        fi
+    else
+        ok "Bitwarden CLI: present"
+    fi
+
     # ── 6. CAC setup ─────────────────────────────────────────────────────────
     log "--- CAC setup ---"
     CAC_SETUP="/etc/skel/.local/bin/cac-setup"
