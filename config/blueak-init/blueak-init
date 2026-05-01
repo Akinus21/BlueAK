@@ -173,17 +173,7 @@ main() {
         disown $ZENITY_PID 2>/dev/null || true
     fi
 
-# ── 1. Surf (suckless WebKit browser) ────────────────────────────────────
-    log "--- Surf ---"
-    if ! command -v surf &>/dev/null; then
-        warn "Surf: not found"
-    else
-        ok "Surf: present"
-    fi
-    sync_skel ".surf/config.h" 2>/dev/null || true
-    sync_skel ".surf/style.css" 2>/dev/null || true
-
-    # ── 2. GTK themes (Eldritch) ─────────────────────────────────────────────
+# ── 2. GTK themes (Eldritch) ─────────────────────────────────────────────
     log "--- GTK themes (Eldritch) ---"
     sync_skel ".config/gtk-3.0/settings.ini"
     sync_skel ".config/gtk-4.0/settings.ini"

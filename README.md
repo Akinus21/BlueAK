@@ -8,7 +8,6 @@ A Universal Blue bootc image template that builds an OCI image and bootable disk
 
 **Desktop & Window Management**
 - [Niri](https://github.com/niri-wm/niri) — scrollable workspace compositor
-- [Ulauncher](https://ulauncher.io) — application launcher
 - [Alacritty](https://alacritty.org) — GPU-accelerated terminal
 - `swaybg` — wallpaper daemon
 - `earlyoom` — early OOM killer
@@ -68,7 +67,6 @@ Runs on every login via systemd user service. Installs / updates:
 | bitwarden-cli | Homebrew |
 | blueak-session-manager | Homebrew (Akinus21/tap) |
 | aktools | Homebrew (Akinus21/tap) |
-| @bitwarden/cli | npm |
 
 **Flatpak**
 - Bitwarden Desktop (flathub)
@@ -86,7 +84,6 @@ Runs on every login via systemd user service. Installs / updates:
 - Zsh config (`.zshrc`, `.p10k.zsh`)
 - Justfile
 - GTK settings (Eldritch dark)
-- Surf config (`.surf/config.h`, `.surf/style.css`)
 - Noctalia color scheme (Purple Haze)
 - Noctalia wallpaper
 

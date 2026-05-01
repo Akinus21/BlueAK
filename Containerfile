@@ -15,7 +15,6 @@ FROM ghcr.io/ublue-os/bluefin:latest
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RUN dnf install -y \
     niri \
-    ulauncher \
     alacritty \
     swaybg \
     earlyoom \
@@ -198,9 +197,6 @@ COPY config/niri/     /etc/skel/.config/niri/
 RUN mkdir -p /etc/skel/.config/gtk-3.0 /etc/skel/.config/gtk-4.0
 COPY config/gtk-3.0/settings.ini /etc/skel/.config/gtk-3.0/settings.ini
 COPY config/gtk-4.0/settings.ini /etc/skel/.config/gtk-4.0/settings.ini
-
-# ── Surf config (suckless WebKit browser) — user-installed at runtime ────────
-RUN mkdir -p /etc/skel/.surf/styles
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 12. Cleanup
