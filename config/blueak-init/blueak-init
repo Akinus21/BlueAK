@@ -253,27 +253,12 @@ IRONEOF
         ok "Bitwarden present"
     fi
 
-    # ── 5b. Bitwarden CLI (npm) ────────────────────────────────────────────
-    log "--- Bitwarden CLI ---"
+    # ── Bitwarden CLI (bw) ──────────────────────────────────────────────────
+    log "--- Bitwarden CLI (bw) ---"
     if ! command -v bw &>/dev/null; then
-        log "Bitwarden CLI: installing..."
-        local BW_TMP
-        BW_TMP=$(mktemp)
-        if HOME=/tmp npm_config_prefix=/usr/local \
-           npm install -g @bitwarden/cli --loglevel=warn 2>"$BW_TMP"; then
-            if grep -qi "error" "$BW_TMP" 2>/dev/null; then
-                warn "Bitwarden CLI: npm reported errors"
-                cat "$BW_TMP" >> "$BLUEAK_LOG" 2>/dev/null
-            else
-                ok "Bitwarden CLI installed"
-            fi
-        else
-            warn "Bitwarden CLI: npm install failed"
-            cat "$BW_TMP" >> "$BLUEAK_LOG" 2>/dev/null
-        fi
-        rm -f "$BW_TMP"
+        warn "bw: not found — install with: brew install bitwarden-cli"
     else
-        ok "Bitwarden CLI: present"
+        ok "bw: present"
     fi
 
     # ── 6. CAC setup ─────────────────────────────────────────────────────────
