@@ -205,7 +205,7 @@ main() {
         for pkg in yazi duf dust age; do brew_ensure "$pkg"; done
         brew_ensure "aktags"
         brew_ensure "bitwarden-cli"
-        brew_ensure "iron-browser"
+        brew_ensure "iron"
         brew_ensure "font-meslo-lg-nerd-font" --cask
         brew_ensure "aktools"
         brew_ensure "blueak-session-manager"

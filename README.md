@@ -64,7 +64,7 @@ Runs on every login via systemd user service. Installs / updates:
 | trivy, grype | Homebrew |
 | yazi, duf, dust, age | Homebrew |
 | aktags | Homebrew (Akinus21/tap) |
-| iron-browser | Homebrew |
+| iron | Homebrew |
 | bitwarden-cli | Homebrew |
 | blueak-session-manager | Homebrew (Akinus21/tap) |
 | aktools | Homebrew (Akinus21/tap) |
