@@ -206,6 +206,33 @@ main() {
         brew_ensure "aktags"
         brew_ensure "bitwarden-cli"
         brew_ensure "iron"
+        # ── Iron browser .desktop ─────────────────────────────────────────────
+        log "--- Iron browser desktop ---"
+        local IRON_BIN
+        IRON_BIN=$(command -v iron 2>/dev/null || echo "")
+        local IRON_DESKTOP="$HOME/.local/share/applications/iron.desktop"
+        if [[ -n "$IRON_BIN" ]]; then
+            if [[ ! -f "$IRON_DESKTOP" ]]; then
+                log "Iron: creating desktop entry..."
+                mkdir -p "$(dirname "$IRON_DESKTOP")"
+                cat > "$IRON_DESKTOP" << 'IRONEOF'
+[Desktop Entry]
+Name=Iron
+Comment=Chromium-based browser
+Exec=iron %U
+Icon=iron
+Terminal=false
+Type=Application
+Categories=Network;WebBrowser;
+MimeType=text/html;application/xhtml+xml;x-scheme-handler(http);x-scheme-handler(https);
+IRONEOF
+                ok "Iron: desktop entry created"
+            else
+                ok "Iron: desktop entry present"
+            fi
+        else
+            ok "Iron: not installed"
+        fi
         brew_ensure "font-meslo-lg-nerd-font" --cask
         brew_ensure "aktools"
         brew_ensure "blueak-session-manager"
@@ -232,10 +259,10 @@ main() {
         log "Bitwarden CLI: installing..."
         local BW_TMP
         BW_TMP=$(mktemp)
-        if HOME=/tmp npm config --global set prefix /usr/local 2>/dev/null && \
-           HOME=/tmp npm install -g @bitwarden/cli --loglevel=error 2>"$BW_TMP"; then
+        if HOME=/tmp npm_config_prefix=/usr/local \
+           npm install -g @bitwarden/cli --loglevel=warn 2>"$BW_TMP"; then
             if grep -qi "error" "$BW_TMP" 2>/dev/null; then
-                warn "Bitwarden CLI: npm reported errors (see init.log)"
+                warn "Bitwarden CLI: npm reported errors"
                 cat "$BW_TMP" >> "$BLUEAK_LOG" 2>/dev/null
             else
                 ok "Bitwarden CLI installed"

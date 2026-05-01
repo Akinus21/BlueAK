@@ -238,8 +238,7 @@ spawn-at-startup "ulauncher" "--hide-window"
 spawn-at-startup "qs" "-c" "noctalia-shell"
 
 hotkey-overlay {
-    // Uncomment this line to disable the "Important Hotkeys" pop-up at startup.
-    // skip-at-startup
+    skip-at-startup
 }
 
 // prefer-no-csd
