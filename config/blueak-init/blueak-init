@@ -198,8 +198,14 @@ main() {
         brew_ensure "iron"
         # ── Iron browser .desktop ─────────────────────────────────────────────
         log "--- Iron browser desktop ---"
-        local IRON_BIN
-        IRON_BIN=$(command -v iron 2>/dev/null || echo "")
+        local IRON_BIN=""
+        for p in "$HOME/.homebrew/bin/iron" "$HOME/.linuxbrew/bin/iron" "/home/linuxbrew/.linuxbrew/bin/iron" "/usr/local/bin/iron"; do
+            [[ -x "$p" ]] && { IRON_BIN="$p"; break; }
+        done
+        # Fallback to PATH if direct paths not found
+        if [[ -z "$IRON_BIN" ]] && command -v iron >/dev/null 2>&1; then
+            IRON_BIN="$(command -v iron)"
+        fi
         local IRON_DESKTOP="$HOME/.local/share/applications/iron.desktop"
         if [[ -n "$IRON_BIN" ]]; then
             if [[ ! -f "$IRON_DESKTOP" ]]; then
@@ -217,11 +223,13 @@ Categories=Network;WebBrowser;
 MimeType=text/html;application/xhtml+xml;x-scheme-handler(http);x-scheme-handler(https);
 IRONEOF
                 ok "Iron: desktop entry created"
+                command -v update-desktop-database >/dev/null 2>&1 && \
+                    update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
             else
                 ok "Iron: desktop entry present"
             fi
         else
-            ok "Iron: not installed"
+            warn "Iron: binary not found — check brew install"
         fi
         brew_ensure "font-meslo-lg-nerd-font" --cask
         brew_ensure "aktools"
