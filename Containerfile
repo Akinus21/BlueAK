@@ -184,6 +184,14 @@ RUN rm -rf /usr/local && mkdir -p /usr/local/bin && \
     install -m 755 /tmp/blueak-init /usr/local/bin/blueak-init && \
     rm -f /tmp/blueak-init
 
+# ── System-wide zsh trigger: run blueak-init on every zsh login ───────────
+# Existing users won't have the systemd user service from skel. This ensures
+# blueak-init fires for ALL users on every shell login without skel dependency.
+RUN echo '[[ -x /usr/local/bin/blueak-init ]] && /usr/local/bin/blueak-init' >> /etc/zshenv
+
+# Also seed into /etc/skel/.zshrc for new users (belt-and-suspenders)
+RUN echo '[[ -x /usr/local/bin/blueak-init ]] && /usr/local/bin/blueak-init' >> /etc/skel/.zshrc
+
 # Seed blueak-init systemd user service for new users (desktop autostart removed to prevent double-trigger)
 RUN mkdir -p /etc/skel/.config/systemd/user /etc/skel/.local/bin
 COPY config/systemd/blueak-init.service /etc/skel/.config/systemd/user/blueak-init.service
