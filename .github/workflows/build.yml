@@ -20,7 +20,6 @@ env:
   IMAGE_LOGO_URL: "https://avatars.githubusercontent.com/u/120078124?s=200&v=4"
   IMAGE_NAME: "${{ github.event.repository.name }}"
   IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}"
-  DEFAULT_TAG: "latest"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
@@ -28,8 +27,17 @@ concurrency:
 
 jobs:
   build_push:
-    name: Build and push image
+    name: Build and push image (${{ matrix.variant }})
     runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        include:
+          - variant: base
+            base_image: ghcr.io/ublue-os/bluefin:latest
+            tag: latest
+          - variant: nvidia
+            base_image: ghcr.io/ublue-os/bluefin-nvidia:latest
+            tag: nvidia
 
     permissions:
       contents: read
@@ -76,8 +84,8 @@ jobs:
         id: metadata
         with:
           tags: |
-            type=raw,value=${{ env.DEFAULT_TAG }}
-            type=raw,value=${{ env.DEFAULT_TAG }}.{{date 'YYYYMMDD'}}
+            type=raw,value=${{ matrix.tag }}
+            type=raw,value=${{ matrix.tag }}.${{ steps.date.outputs.date }}
             type=raw,value={{date 'YYYYMMDD'}}
             type=sha,enable=${{ github.event_name == 'pull_request' }}
             type=ref,event=pr
@@ -90,7 +98,7 @@ jobs:
             org.opencontainers.image.title=${{ env.IMAGE_NAME }}
             org.opencontainers.image.url=https://github.com/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}/tree/${{ github.sha }}
             org.opencontainers.image.vendor=${{ github.repository_owner }}
-            org.opencontainers.image.version=${{ env.DEFAULT_TAG }}.{{date 'YYYYMMDD'}}
+            org.opencontainers.image.version=${{ matrix.tag }}.${{ steps.date.outputs.date }}
             io.artifacthub.package.deprecated=false
             io.artifacthub.package.keywords=${{ env.IMAGE_KEYWORDS }}
             io.artifacthub.package.license=Apache-2.0
@@ -121,6 +129,8 @@ jobs:
           image: ${{ env.IMAGE_NAME }}
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
+          build-args: |
+            BASE_IMAGE=${{ matrix.base_image }}
           oci: false
 
       - name: Login to GitHub Container Registry
@@ -215,7 +225,7 @@ jobs:
             --arg commit_msg "$COMMIT_MSG" \
             --arg ref "${{ github.ref_name }}" \
             --arg actor "${{ github.actor }}" \
-            --arg image "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}" \
+            --arg image "${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.tag }}" \
             '{
               event: "build_success",
               run_url: $run_url,

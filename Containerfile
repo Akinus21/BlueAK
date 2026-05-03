@@ -1,4 +1,5 @@
-FROM ghcr.io/ublue-os/bluefin:latest
+ARG BASE_IMAGE=ghcr.io/ublue-os/bluefin:latest
+FROM ${BASE_IMAGE}
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 1. Terra repo is added dynamically at runtime (see blueak-init.sh) since
