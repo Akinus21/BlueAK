@@ -20,6 +20,14 @@ export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$UID}"
 export DISPLAY="${DISPLAY:-:0}"
 export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}"
 
+# Ensure Homebrew is in PATH for this session
+if [[ -d "$HOME/.homebrew/bin" ]]; then
+    export PATH="$HOME/.homebrew/bin:$PATH"
+fi
+if [[ -d "/home/linuxbrew/.linuxbrew/bin" ]]; then
+    export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
+fi
+
 mkdir -p "$BLUEAK_STATE_DIR" "$BLUEAK_LOG_DIR" "$HOME/.local/bin"
 sudo mkdir -p /usr/local/bin 2>/dev/null || true
 
@@ -179,8 +187,8 @@ main() {
     sync_skel ".config/gtk-4.0/settings.ini"
 
     # ── 3. Niri config ─────────────────────────────────────────────────────
-    # Niri config is managed directly in /etc/skel — don't overwrite from blueak-init
-    # sync_skel ".config/niri/config.kdl"
+    # Niri config is synced from skel so users get the latest layout/keybinds
+    sync_skel ".config/niri/config.kdl"
 
     # ── 4. Homebrew packages ────────────────────────────────────────────────
     log "--- Homebrew ---"
@@ -234,6 +242,23 @@ IRONEOF
         brew_ensure "font-meslo-lg-nerd-font" --cask
         brew_ensure "aktools"
         brew_ensure "blueak-session-manager"
+    fi
+
+    # ── Ensure Noctalia is reachable ────────────────────────────────────────
+    log "--- Noctalia shell ---"
+    if ! command -v qs &>/dev/null; then
+        warn "Noctalia: qs not in PATH — checking /usr/bin and /usr/local/bin"
+        if [[ -f /usr/bin/qs ]]; then
+            ok "Noctalia: qs found at /usr/bin/qs"
+        elif [[ -f /usr/local/bin/qs ]]; then
+            ok "Noctalia: qs found at /usr/local/bin/qs"
+        elif require_brew; then
+            brew_ensure "noctalia-shell" 2>/dev/null || true
+        else
+            warn "Noctalia: not installed — run: sudo dnf install noctalia-shell"
+        fi
+    else
+        ok "Noctalia: present"
     fi
 
     # ── 5. Flatpak (Bitwarden) ──────────────────────────────────────────────
