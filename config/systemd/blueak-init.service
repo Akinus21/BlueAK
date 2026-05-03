@@ -1,16 +1,14 @@
 [Unit]
-Description=BlueAK first-login bootstrap and update checker
-After=graphical-session.target
-PartOf=graphical-session.target
+Description=BlueAK bootstrap and update checker
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/bin/bash -c 'PATH="/usr/local/bin:$PATH" exec /usr/local/bin/blueak-init'
-RemainAfterExit=yes
-Environment=PATH=/usr/local/bin:/usr/bin:/bin
-Environment=DISPLAY=:0
-Environment=XDG_CURRENT_DESKTOP=GNOME
-Environment=XDG_SESSION_TYPE=wayland
+ExecStart=/bin/bash -c 'source "$HOME/.bashrc" 2>/dev/null || true; [[ -d "$HOME/.homebrew/bin" ]] && PATH="$HOME/.homebrew/bin:$PATH"; [[ -d "/home/linuxbrew/.linuxbrew/bin" ]] && PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"; export PATH="/usr/local/bin:$PATH"; exec /usr/local/bin/blueak-init'
+StandardOutput=journal
+StandardError=journal+console
+RemainAfterExit=no
 
 [Install]
-WantedBy=graphical-session.target
+WantedBy=default.target
