@@ -354,6 +354,17 @@ IRONEOF
     local OMZ="$HOME/.oh-my-zsh"
     local OMZ_PLUGINS="$OMZ/custom/plugins"
     local OMZ_THEMES="$OMZ/custom/themes"
+
+    # Check base Oh-My-Zsh first
+    if [[ ! -d "$OMZ/.git" ]]; then
+        log "OMZ: base directory missing — cloning..."
+        git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git "$OMZ" 2>/dev/null \
+            && ok "OMZ: oh-my-zsh installed" \
+            || warn "OMZ: oh-my-zsh clone failed"
+    else
+        ok "OMZ: base directory present"
+    fi
+
     mkdir -p "$OMZ_PLUGINS" "$OMZ_THEMES"
 
     for plugin in zsh-autosuggestions zsh-syntax-highlighting zsh-completions; do
