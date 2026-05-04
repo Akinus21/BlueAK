@@ -200,6 +200,38 @@ COPY config/cac/cac-setup /etc/skel/.local/bin/cac-setup
 RUN chmod +x /etc/skel/.local/bin/cac-setup
 
 # Legacy profile.d script removed — replaced by systemd user service
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 11b. PC Gaming support
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RUN dnf install -y \
+    gamemode \
+    gamescope \
+    mangohud \
+    wine \
+    winetricks \
+    lutris
+
+RUN dnf install -y \
+    vulkan-tools \
+    vulkan-loader \
+    mesa-vulkan-drivers \
+    libva \
+    libva-utils \
+    mesa-va-drivers \
+    steam-devices \
+    pipewire-jack \
+    pipewire-alsa
+
+RUN printf '# Gaming tweaks — applied by BlueAK\n\
+# Required by many games (Star Citizen, etc.)\n\
+vm.max_map_count=2147483642\n\
+# Reduces micro-stutter from split-lock slowdowns\n\
+kernel.split_lock_mitigate=0\n' \
+    > /etc/sysctl.d/99-gaming.conf
+
+RUN groupadd -f gamemode
+
 COPY config/niri/     /etc/skel/.config/niri/
 
 # ── Eldritch Theme — GTK ────────────────────────────────────────────────────
