@@ -242,6 +242,21 @@ IRONEOF
         fi
         brew_ensure "font-meslo-lg-nerd-font" --cask
         brew_ensure "aktools"
+
+        # ── AKTools modules ───────────────────────────────────────────────────
+        log "--- AKTools modules ---"
+        if command -v aktools >/dev/null 2>&1; then
+            log "AKTools: upgrading..."
+            aktools upgrade 2>/dev/null && ok "AKTools: upgraded" || warn "AKTools: upgrade failed"
+
+            log "AKTools: installing blueak module..."
+            aktools install-mod blueak 2>/dev/null && ok "AKTools: blueak module installed" || warn "AKTools: blueak module failed"
+
+            log "AKTools: installing noctalia module..."
+            aktools install-mod noctalia 2>/dev/null && ok "AKTools: noctalia module installed" || warn "AKTools: noctalia module failed"
+        else
+            warn "AKTools: not found after brew — skipping module install"
+        fi
         brew_ensure "blueak-session-manager"
     fi
 
