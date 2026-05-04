@@ -245,6 +245,17 @@ IRONEOF
         brew_ensure "blueak-session-manager"
     fi
 
+    # ── Bluefin CLI tools ───────────────────────────────────────────────────
+    log "--- Bluefin CLI ---"
+    if command -v ujust >/dev/null 2>&1; then
+        log "Running ujust bluefin-cli..."
+        ujust bluefin-cli 2>&1 | tail -20 >> "$BLUEAK_LOG" && \
+            ok "Bluefin CLI: ujust bluefin-cli completed" || \
+            warn "Bluefin CLI: ujust bluefin-cli failed"
+    else
+        warn "Bluefin CLI: ujust not found — skipping bluefin-cli"
+    fi
+
     # ── Ensure Noctalia is reachable ────────────────────────────────────────
     log "--- Noctalia shell ---"
     if ! command -v qs &>/dev/null; then
