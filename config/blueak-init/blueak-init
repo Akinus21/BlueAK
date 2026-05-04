@@ -460,6 +460,26 @@ with open('$SETTINGS_FILE', 'w') as f:
     log "--- Service health ---"
     systemctl --user start ollama 2>/dev/null || true
 
+    # ── Ensure Noctalia is running ────────────────────────────────────────
+    log "--- Noctalia health check ---"
+    if pgrep -x "qs" >/dev/null 2>&1 || pgrep -f "noctalia-shell" >/dev/null 2>&1; then
+        ok "Noctalia: running"
+    else
+        log "Noctalia: not running — attempting to start..."
+        if command -v qs >/dev/null 2>&1; then
+            nohup qs -c noctalia-shell >/dev/null 2>&1 &
+            disown >/dev/null 2>&1 || true
+            sleep 1
+            if pgrep -x "qs" >/dev/null 2>&1; then
+                ok "Noctalia: started"
+            else
+                warn "Noctalia: failed to start (qs returned immediately)"
+            fi
+        else
+            warn "Noctalia: qs binary not found — cannot auto-start"
+        fi
+    fi
+
     # Mark sync complete
     touch "$SYNC_MARKER"
     set_version "last_sync" "$(date +%s)"
