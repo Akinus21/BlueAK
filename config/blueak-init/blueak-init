@@ -189,6 +189,7 @@ main() {
     # ── 3. Niri config ─────────────────────────────────────────────────────
     # Niri config is synced from skel so users get the latest layout/keybinds
     sync_skel ".config/niri/config.kdl"
+    sync_skel ".config/niri/noctalia.kdl"
 
     # ── 4. Homebrew packages ────────────────────────────────────────────────
     log "--- Homebrew ---"
