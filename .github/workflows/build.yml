@@ -35,9 +35,11 @@ jobs:
           - variant: base
             base_image: ghcr.io/ublue-os/bluefin:latest
             tag: latest
+            gaming: false
           - variant: nvidia
             base_image: ghcr.io/ublue-os/bluefin-nvidia:latest
             tag: nvidia
+            gaming: true
 
     permissions:
       contents: read
@@ -131,6 +133,7 @@ jobs:
           labels: ${{ steps.metadata.outputs.labels }}
           build-args: |
             BASE_IMAGE=${{ matrix.base_image }}
+            GAMING=${{ matrix.gaming }}
           oci: false
 
       - name: Login to GitHub Container Registry

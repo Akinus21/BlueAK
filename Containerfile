@@ -201,36 +201,16 @@ RUN chmod +x /etc/skel/.local/bin/cac-setup
 
 # Legacy profile.d script removed — replaced by systemd user service
 
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 11b. PC Gaming support
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RUN dnf install -y \
-    gamemode \
-    gamescope \
-    mangohud \
-    wine \
-    winetricks \
-    lutris
-
-RUN dnf install -y \
-    vulkan-tools \
-    vulkan-loader \
-    mesa-vulkan-drivers \
-    libva \
-    libva-utils \
-    mesa-va-drivers \
-    steam-devices \
-    pipewire-jack \
-    pipewire-alsa
-
-RUN printf '# Gaming tweaks — applied by BlueAK\n\
-# Required by many games (Star Citizen, etc.)\n\
-vm.max_map_count=2147483642\n\
-# Reduces micro-stutter from split-lock slowdowns\n\
-kernel.split_lock_mitigate=0\n' \
-    > /etc/sysctl.d/99-gaming.conf
-
-RUN groupadd -f gamemode
+ARG GAMING=false
+RUN if [ "$GAMING" = "true" ]; then \
+        dnf install -y \
+            gamemode gamescope mangohud wine winetricks lutris \
+            vulkan-tools vulkan-loader mesa-vulkan-drivers \
+            libva libva-utils mesa-va-drivers \
+            steam-devices pipewire-jack pipewire-alsa \
+        && printf '# Gaming tweaks\nvm.max_map_count=2147483642\nkernel.split_lock_mitigate=0\n' > /etc/sysctl.d/99-gaming.conf \
+        && groupadd -f gamemode; \
+    fi
 
 COPY config/niri/     /etc/skel/.config/niri/
 

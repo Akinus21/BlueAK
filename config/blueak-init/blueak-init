@@ -260,28 +260,6 @@ IRONEOF
         brew_ensure "blueak-session-manager"
     fi
 
-    # ── Gaming Flatpaks ─────────────────────────────────────────────────────
-    log "--- Gaming ---"
-    declare -A GAMING_FLATPAKS=(
-        ["com.valvesoftware.Steam"]="Steam"
-        ["net.lutris.Lutris"]="Lutris"
-        ["com.heroicgameslauncher.hgl"]="Heroic Games Launcher"
-        ["net.davidotek.pupgui2"]="ProtonUp-Qt"
-        ["io.github.benjamimgois.goverlay"]="GOverlay"
-    )
-
-    for app_id in "${!GAMING_FLATPAKS[@]}"; do
-        local name="${GAMING_FLATPAKS[$app_id]}"
-        if ! flatpak list --user --app 2>/dev/null | grep -q "$app_id"; then
-            log "Gaming: installing $name..."
-            flatpak install --user -y flathub "$app_id" 2>/dev/null \
-                && ok "Gaming: $name installed" \
-                || warn "Gaming: $name install failed"
-        else
-            ok "Gaming: $name present"
-        fi
-    done
-
     # ── Bluefin CLI tools ───────────────────────────────────────────────────
     log "--- Bluefin CLI ---"
     if command -v ujust >/dev/null 2>&1; then
