@@ -106,6 +106,7 @@ build-nvidia $target_image=image_name $tag="nvidia":
 
     BUILD_ARGS=()
     BUILD_ARGS+=("--build-arg" "BASE_IMAGE=ghcr.io/ublue-os/bluefin-nvidia:latest")
+    BUILD_ARGS+=("--build-arg" "GAMING=true")
     if [[ -z "$(git status -s)" ]]; then
         BUILD_ARGS+=("--build-arg" "SHA_HEAD_SHORT=$(git rev-parse --short HEAD)")
     fi
