@@ -205,7 +205,7 @@ ARG GAMING=false
 RUN if [ "$GAMING" = "true" ]; then \
         echo "GAMING=true — installing gaming packages..."; \
         dnf install -y --skip-broken \
-            gamemode gamescope mangohud \
+            gamemode gamescope mangohud goverlay \
             vulkan-tools vulkan-loader mesa-vulkan-drivers \
             mesa-dri-drivers libva libva-utils mesa-va-drivers \
             steam-devices || true; \
@@ -213,6 +213,8 @@ RUN if [ "$GAMING" = "true" ]; then \
         dnf install -y --skip-broken lutris || true; \
         printf '# Gaming tweaks\nvm.max_map_count=2147483642\nkernel.split_lock_mitigate=0\n' > /etc/sysctl.d/99-gaming.conf; \
         groupadd -f gamemode; \
+        touch /etc/blueak-gaming; \
+        printf '#!/bin/sh\nexport __NV_PRIME_RENDER_OFFLOAD=1\nexport __GLX_VENDOR_LIBRARY_NAME=nvidia\nexport VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.x86_64.json:/usr/share/vulkan/icd.d/nvidia_icd.i686.json\n' > /etc/profile.d/blueak-nvidia-gaming.sh; \
     fi
 
 COPY config/niri/     /etc/skel/.config/niri/

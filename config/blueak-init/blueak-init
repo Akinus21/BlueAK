@@ -311,6 +311,40 @@ IRONEOF
         ok "bw: present"
     fi
 
+    # ── Gaming (nvidia variant) ──────────────────────────────────────────────
+    if [[ -f /etc/blueak-gaming ]]; then
+        log "--- Gaming setup ---"
+
+        # Add user to gamemode group for performance mode
+        if getent group gamemode &>/dev/null; then
+            sudo usermod -aG gamemode "$USER" 2>/dev/null \
+                && ok "gamemode: $USER added to group" \
+                || warn "gamemode: failed to add $USER to group"
+        else
+            warn "gamemode: group not found"
+        fi
+
+        # Gaming flatpaks
+        GAMING_FLATPAKS=(
+            "com.valvesoftware.Steam"
+            "com.github.Matoking.protontricks"
+            "net.davidotek.pupgui2"
+            "com.heroicgameslauncher.hgl"
+        )
+        for fp in "${GAMING_FLATPAKS[@]}"; do
+            if ! flatpak list --user --app 2>/dev/null | grep -q "$fp"; then
+                log "Gaming: installing $fp..."
+                flatpak install --user -y flathub "$fp" 2>&1 \
+                    && ok "Gaming: $fp installed" \
+                    || warn "Gaming: $fp install failed"
+            else
+                ok "Gaming: $fp (present)"
+            fi
+        done
+    else
+        ok "Gaming: not a gaming variant — skipping"
+    fi
+
     # ── 6. CAC setup ─────────────────────────────────────────────────────────
     log "--- CAC setup ---"
     CAC_SETUP="/etc/skel/.local/bin/cac-setup"
