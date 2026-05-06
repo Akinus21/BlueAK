@@ -528,6 +528,29 @@ with open('$SETTINGS_FILE', 'w') as f:
         fi
     done
 
+    # ── Noctalia ReGreet greeter CSS sync ────────────────────────────────────
+    log "--- ReGreet CSS sync ---"
+    mkdir -p "$HOME/.cache/noctalia"
+    sync_skel ".config/noctalia/templates/regreet.css.tpl"
+    sync_skel ".config/noctalia/user-templates.toml"
+    sync_skel ".config/systemd/user/blueak-sync-greeter-css.service"
+    sync_skel ".config/systemd/user/blueak-sync-greeter-css.path"
+    if systemctl --user is-enabled blueak-sync-greeter-css.path 2>/dev/null; then
+        ok "greeter CSS sync: path unit enabled"
+    else
+        systemctl --user enable --now blueak-sync-greeter-css.path 2>/dev/null \
+            && ok "greeter CSS sync: path unit enabled" \
+            || warn "greeter CSS sync: path unit enable failed"
+    fi
+    # Seed the greeter CSS if Noctalia hasn't rendered yet
+    if [[ ! -f "$HOME/.cache/noctalia/regreet.css" ]] && [[ -f /etc/greetd/regreet.css ]]; then
+        cp /etc/greetd/regreet.css "$HOME/.cache/noctalia/regreet.css" \
+            && ok "greeter CSS: seeded from default" \
+            || warn "greeter CSS: seed failed"
+    else
+        ok "greeter CSS: present"
+    fi
+
     # ── Always: ensure all tracked services are running ────────────────────
     log "--- Service health ---"
     systemctl --user start ollama 2>/dev/null || true

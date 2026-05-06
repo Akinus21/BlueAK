@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+  "https://www.freedesktop.org/standards/PolicyKit/1.0/policyconfig.dtd">
+<policyconfig>
+  <vendor>BlueAK</vendor>
+  <vendor_url>https://github.com/Akinus21/BlueAK</vendor_url>
+  <action id="com.blueak.sync-greeter-css">
+    <description>Sync Noctalia theme CSS to greetd</description>
+    <message>Authentication is required to update the login screen theme.</message>
+    <defaults>
+      <allow_any>yes</allow_any>
+      <allow_inactive>yes</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/bin/install</annotate>
+  </action>
+</policyconfig>

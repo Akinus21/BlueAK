@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch for Noctalia regreet CSS changes
+After=default.target
+
+[Path]
+PathModified=%h/.cache/noctalia/regreet.css
+
+[Install]
+WantedBy=default.target

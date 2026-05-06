@@ -154,9 +154,27 @@ COPY config/aktags/aktags.desktop /etc/skel/.config/autostart/aktags.desktop
 # ── AKSpraypainter — theme-to-wallpaper color sync (planned) ────────────────
 # TODO: Add AKSpraypainter binary once available
 
-# ── Noctalia color config seed ────────────────────────────────────────────────
-RUN mkdir -p /etc/skel/.config/noctalia
+# ── Noctalia color config seed + ReGreet greeter templates ─────────────────
+RUN mkdir -p /etc/skel/.config/noctalia /etc/skel/.cache/noctalia
 COPY config/noctalia/ /etc/skel/.config/noctalia/
+# greetd + cage for Wayland greeter; Noctalia renders theme-colored CSS
+RUN dnf install -y --skip-broken greetd cage || true && \
+    mkdir -p /etc/greetd
+# Seed a default dark regreet CSS so the greeter has styling even before first Noctalia render
+RUN printf '/* BlueAK default greeter CSS — replaced by Noctalia on first theme change */\n' \
+    'window { background: #212337; }\n' \
+    'box.login-box, box#main-box { background: rgba(50,52,73,0.72); border-radius: 16px; }\n' \
+    'label { color: #ebfafa; }\n' \
+    'entry { background: rgba(50,52,73,0.6); color: #ebfafa; border-radius: 8px; }\n' \
+    'button.suggested-action, button#login-button { background: #04d1f9; color: #212337; border-radius: 8px; }\n' \
+    > /etc/greetd/regreet.css
+
+# ── Greeter CSS sync: sudoers + polkit + systemd units ──────────────────────
+COPY config/sudoers.d/noctalia-greeter /etc/sudoers.d/noctalia-greeter
+RUN chmod 440 /etc/sudoers.d/noctalia-greeter
+COPY config/polkit-1/actions/com.blueak.sync-greeter-css.policy /usr/share/polkit-1/actions/com.blueak.sync-greeter-css.policy
+COPY config/systemd/blueak-sync-greeter-css.service /etc/skel/.config/systemd/user/blueak-sync-greeter-css.service
+COPY config/systemd/blueak-sync-greeter-css.path /etc/skel/.config/systemd/user/blueak-sync-greeter-css.path
 
 # ── nirinit — session restore for niri ───────────────────────────────────────
 # Download pre-built binary
