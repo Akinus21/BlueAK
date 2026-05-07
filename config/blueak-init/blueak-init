@@ -14,7 +14,9 @@ BLUEAK_STATE_DIR="$HOME/.local/share/blueak"
 BLUEAK_LOG_DIR="$BLUEAK_STATE_DIR"
 BLUEAK_LOG="$BLUEAK_LOG_DIR/init.log"
 SYNC_MARKER="$BLUEAK_STATE_DIR/.sync-done"
+SYNC_INTERVAL=3600  # Skip if synced within 1 hour
 VERSION_FILE="$BLUEAK_STATE_DIR/.versions"
+LOCK_FILE="$BLUEAK_STATE_DIR/.init-lock"
 
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$UID}"
 export DISPLAY="${DISPLAY:-:0}"
@@ -125,7 +127,35 @@ install_binary() {
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 main() {
-    exec >> "$BLUEAK_LOG" 2>&1
+    # Non-blocking: if another blueak-init is running, exit immediately
+    if [[ -f "$LOCK_FILE" ]]; then
+        local LOCK_PID
+        LOCK_PID=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
+        if [[ -n "$LOCK_PID" ]] && kill -0 "$LOCK_PID" 2>/dev/null; then
+            echo "blueak-init already running (pid $LOCK_PID) — skipping"
+            return 0
+        fi
+        rm -f "$LOCK_FILE"
+    fi
+    echo $$ > "$LOCK_FILE"
+
+    # Time-based skip: don't run more than once per SYNC_INTERVAL seconds
+    if [[ -f "$SYNC_MARKER" ]]; then
+        local LAST_SYNC
+        LAST_SYNC=$(stat -c %Y "$SYNC_MARKER" 2>/dev/null || echo 0)
+        local NOW
+        NOW=$(date +%s)
+        if (( NOW - LAST_SYNC < SYNC_INTERVAL )); then
+            rm -f "$LOCK_FILE"
+            echo "blueak-init skipped: synced $(( (NOW - LAST_SYNC) / 60 ))m ago (interval: $(( SYNC_INTERVAL / 60 ))m)"
+            return 0
+        fi
+    fi
+
+    # Remove strict error-exit for the background run so one failure doesn't kill everything
+    set +e
+
+    exec >> "$BLUEAK_LOG" 2>>&1
     echo ""
     echo "════════════════════════════════════════"
     echo "[blueak-init] $(date '+%Y-%m-%d %H:%M:%S')"
@@ -258,6 +288,7 @@ IRONEOF
             warn "AKTools: not found after brew — skipping module install"
         fi
         brew_ensure "blueak-session-manager"
+        brew_ensure "akspraypaint"
     fi
 
     # ── Bluefin CLI tools ───────────────────────────────────────────────────
@@ -585,6 +616,9 @@ with open('$SETTINGS_FILE', 'w') as f:
         kill "$ZENITY_PID" 2>/dev/null || true
     fi
 
+    # Cleanup lock
+    rm -f "$LOCK_FILE"
+
     if [[ $errors -gt 0 ]]; then
         ok "blueak-init complete with $errors error(s) — see ~/.local/share/blueak/init.log"
         show_error "BlueAK Setup" "blueak-init finished with $errors error(s).\nCheck ~/.local/share/blueak/init.log for details."
@@ -595,5 +629,15 @@ with open('$SETTINGS_FILE', 'w') as f:
         fi
     fi
 }
+
+# If run in the foreground (e.g., from /etc/zshenv or .zshrc), spawn a
+# background subshell so the terminal is never blocked.
+if [[ "${BLUEAK_INIT_FOREGROUND:-}" != "1" ]]; then
+    (
+        BLUEAK_INIT_FOREGROUND=1
+        "$0" > "$BLUEAK_LOG" 2>&1
+    ) &
+    exit 0
+fi
 
 main "$@"
