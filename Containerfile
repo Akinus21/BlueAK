@@ -179,14 +179,15 @@ COPY config/aktags/aktags.desktop /etc/skel/.config/autostart/aktags.desktop
 # Build: ensure this comment triggers CI
 
 # ── Build cage from source (Wayland kiosk compositor for regreet) ───────────────
-# cage-kiosk/cage v0.3.0 — wlroots 0.20 matches Fedora 42's wlroots
+# cage-kiosk/cage v0.1.4 — compatible with Fedora 42's wlroots 0.19
+# v0.3.0 requires wlroots 0.20 which is not available in Fedora 42
 RUN dnf install -y --skip-broken \
     meson ninja-build scdoc \
     wayland-protocols-devel wayland-devel \
     pixman-devel libxkbcommon-devel wlroots-devel \
     libinput-devel && \
     mkdir -p /tmp/cage-src && \
-    curl -fsSL https://github.com/cage-kiosk/cage/releases/download/v0.3.0/cage-0.3.0.tar.gz \
+    curl -fsSL https://github.com/cage-kiosk/cage/releases/download/v0.1.4/cage-0.1.4.tar.gz \
         -o /tmp/cage.tar.gz && \
     tar xzf /tmp/cage.tar.gz -C /tmp/cage-src --strip-components=1 && \
     meson setup /tmp/cage-src /tmp/cage-build --prefix=/usr -Dman-pages=disabled && \
