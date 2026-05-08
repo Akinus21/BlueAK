@@ -49,7 +49,8 @@ RUN dnf install -y --skip-broken \
         > /etc/pkcs11/modules/opensc.module
 
 # Create OpenSC config forcing CAC driver for DoD CAC cards
-RUN printf 'app default {\n    card_drivers = cac;\n    force_card_driver = cac;\n}\n' \
+RUN mkdir -p /etc/opensc && \
+    printf 'app default {\n    card_drivers = cac;\n    force_card_driver = cac;\n}\n' \
     > /etc/opensc/opensc.conf.new && \
     if [ -f /etc/opensc/opensc.conf ]; then \
         grep -q "force_card_driver" /etc/opensc/opensc.conf || \
