@@ -183,8 +183,8 @@ COPY config/aktags/aktags.desktop /etc/skel/.config/autostart/aktags.desktop
 RUN dnf install -y --skip-broken \
     meson ninja-build scdoc \
     wayland-protocols-devel wayland-devel \
-    pixman-devel xkbcommon-devel wlroots-devel \
-    libinput-devel libxkbcommon-x11-devel && \
+    pixman-devel libxkbcommon-devel wlroots-devel \
+    libinput-devel && \
     mkdir -p /tmp/cage-src && \
     curl -fsSL https://github.com/cage-kiosk/cage/releases/download/v0.3.0/cage-0.3.0.tar.gz \
         -o /tmp/cage.tar.gz && \
