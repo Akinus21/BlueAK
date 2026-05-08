@@ -181,31 +181,21 @@ COPY config/aktags/aktags.desktop /etc/skel/.config/autostart/aktags.desktop
 # ── Noctalia color config seed + ReGreet greeter templates ─────────────────
 RUN mkdir -p /etc/skel/.config/noctalia /etc/skel/.cache/noctalia
 COPY config/noctalia/ /etc/skel/.config/noctalia/
-# greetd + cage for Wayland greeter; Noctalia renders theme-colored CSS
-RUN dnf install -y --skip-broken greetd cage regreet || true && \
+# greetd + gtkgreet for Wayland greeter; Noctalia renders theme-colored CSS
+# gtkgreet is bundled with greetd; cage/regreet are not in standard repos
+RUN dnf install -y --skip-broken greetd || true && \
     mkdir -p /etc/greetd
-# Seed a default dark regreet CSS so the greeter has styling even before first Noctalia render
-RUN printf '/* BlueAK default greeter CSS — replaced by Noctalia on first theme change */\n' \
-    'window { background: #0b070d; }\n' \
-    'box.login-box, box#main-box { background: rgba(11,7,13,0.72); border-radius: 16px; }\n' \
-    'label { color: #ad9bbb; }\n' \
-    'entry { background: rgba(36,19,48,0.6); color: #ad9bbb; border-radius: 8px; }\n' \
-    'button.suggested-action, button#login-button { background: #A8E000; color: #0C0E00; border-radius: 8px; }\n' \
-    > /etc/greetd/regreet.css
 
-# ── Greeter CSS sync: sudoers + polkit + systemd units ──────────────────────
+# ── Greeter CSS sync: sudoers + polkit ────────────────────────────────────────
 COPY config/sudoers.d/noctalia-greeter /etc/sudoers.d/noctalia-greeter
 RUN chmod 440 /etc/sudoers.d/noctalia-greeter
 COPY config/polkit-1/actions/com.blueak.sync-greeter-css.policy /usr/share/polkit-1/actions/com.blueak.sync-greeter-css.policy
-COPY config/systemd/blueak-sync-greeter-css.service /etc/skel/.config/systemd/user/blueak-sync-greeter-css.service
-COPY config/systemd/blueak-sync-greeter-css.path /etc/skel/.config/systemd/user/blueak-sync-greeter-css.path
 
-# ── greetd + regreet setup ───────────────────────────────────────────────────
-# regreet.toml: tells greetd to use regreet (Rust) with cage as the compositor
-RUN printf '[terminal]\nvt = 1\n\n[default_session]\ncommand = "/etc/greetd/regreet-launch.sh"\nuser = "greeter"\n' > /etc/greetd/regreet.toml
-COPY config/greetd/regreet-launch.sh /etc/greetd/regreet-launch.sh
-RUN chmod +x /etc/greetd/regreet-launch.sh && \
-    id greeter &>/dev/null || useradd -r -m -s /usr/bin/nologin -c "Greeter" greeter && \
+# ── greetd + agreety setup ────────────────────────────────────────────────────
+# agreety is built into greetd itself — no cage/regreet needed
+# niri is launched as the session after greeter authentication
+RUN printf '[terminal]\nvt = 1\n\n[default_session]\ncommand = "/usr/bin/agreety --session /usr/bin/niri"\nuser = "greeter"\n' > /etc/greetd/config.toml
+RUN id greeter &>/dev/null || useradd -r -m -s /usr/bin/nologin -c "Greeter" greeter && \
     usermod -aG video greeter && \
     usermod -aG input greeter
 # Disable GDM; enable greetd as the display manager
