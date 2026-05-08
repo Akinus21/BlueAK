@@ -31,29 +31,52 @@ RUN dnf install -y --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 3. CAC smart card support
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# coolkey: DoD CAC support (PIV/CAC cards)
+# udev rules: CAC reader hotplug detection
 RUN dnf install -y \
     pcsc-lite \
     pcsc-lite-ccid \
     pcsc-tools \
     opensc \
+    coolkey \
     nss-tools \
     p11-kit \
     p11-kit-server \
     gnutls-utils \
     openssl \
-    unzip
-
-RUN mkdir -p /etc/pkcs11/modules && \
+    unzip && \
+    mkdir -p /etc/pkcs11/modules && \
     printf 'module: /usr/lib64/pkcs11/opensc-pkcs11.so\ncritical: no\n' \
-    > /etc/pkcs11/modules/opensc.module
+        > /etc/pkcs11/modules/opensc.module
 
-RUN if [ -f /etc/opensc/opensc.conf ]; then \
+# Create OpenSC config forcing CAC driver for DoD CAC cards
+RUN printf 'app default {\n    card_drivers = cac;\n    force_card_driver = cac;\n}\n' \
+    > /etc/opensc/opensc.conf.new && \
+    if [ -f /etc/opensc/opensc.conf ]; then \
         grep -q "force_card_driver" /etc/opensc/opensc.conf || \
-        sed -i '/^app default {/a\\tcard_drivers = cac;\n\tforce_card_driver = cac;' \
-            /etc/opensc/opensc.conf; \
-    fi
+        cat /etc/opensc/opensc.conf >> /etc/opensc/opensc.conf.new; \
+    fi && \
+    mv /etc/opensc/opensc.conf.new /etc/opensc/opensc.conf
 
-RUN systemctl enable pcscd.service
+# Install udev rules for common CAC readers (Gemalto, SCR, OMNIKEY, etc.)
+RUN mkdir -p /etc/udev/rules.d && \
+    printf '# CAC/PCSC smart card readers\n' \
+    'SUBSYSTEM=="usb", ATTR{idVendor}=="04e6", ATTR{idProduct}=="e003", MODE="0660", GROUP="pcscd"\n' \
+    'SUBSYSTEM=="usb", ATTR{idVendor}=="04e6", ATTR{idProduct}=="e004", MODE="0660", GROUP="pcscd"\n' \
+    'SUBSYSTEM=="usb", ATTR{idVendor}=="04e6", ATTR{idProduct}*"scr", MODE="0660", GROUP="pcscd"\n' \
+    'SUBSYSTEM=="usb", ATTR{idVendor}=="0dc3", MODE="0660", GROUP="pcscd"\n' \
+    'SUBSYSTEM=="usb", ATTR{idVendor}=="0b97", ATTR{idProduct}=="7762", MODE="0660", GROUP="pcscd"\n' \
+    'SUBSYSTEM=="usb", ATTR{idVendor}=="0b97", ATTR{idProduct}=="7761", MODE="0660", GROUP="pcscd"\n' \
+    'SUBSYSTEM=="usb", ATTR{idVendor}=="1a34", MODE="0660", GROUP="pcscd"\n' \
+    'SUBSYSTEM=="usb", ATTR{idVendor}=="0a5c", MODE="0660", GROUP="pcscd"\n' \
+    'KERNEL=="pcsc*", SUBSYSTEM=="usbmisc", MODE="0660", GROUP="pcscd"\n' \
+    > /etc/udev/rules.d/92-cac-reader.rules && \
+    printf 'SUBSYSTEM=="usb", ENV{ID_SMARTCARD}=="1", MODE="0660", GROUP="pcscd"\n' \
+    >> /etc/udev/rules.d/92-cac-reader.rules
+
+# Enable pcscd socket so it's active on boot (hotplug-aware)
+RUN systemctl enable pcscd.service && \
+    systemctl enable pcscd.socket 2>/dev/null || true
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 4. Install DoD PKI CA certificates

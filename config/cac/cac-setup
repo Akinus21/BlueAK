@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
 # cac-setup — Zero-interaction CAC reader + certificate setup for BlueAK
 #
-# Run on first login via blueak-init. Handles:
-#   - pcscd service + socket enablement
-#   - OpenSC PKCS#11 module registration (NSS db, Firefox, Flatpak Okular)
-#   - Verifies card is readable end-to-end
+# Run on first login via blueak-init. No interaction required.
+# Handles: pcscd, OpenSC module registration, NSS dbs, GnuPG CCID disable.
 #
-# To re-run: rm ~/.local/share/blueak/.cac-setup-done
+# To force re-run: rm ~/.local/share/blueak/.cac-setup-done
 
 set -eo pipefail
 
@@ -17,110 +15,138 @@ log()  { echo "➜  CAC: $1"; }
 ok()   { echo "✔  CAC: $1"; }
 warn() { echo "!  CAC: $1"; }
 
-# ── pcscd — start and enable ────────────────────────────────────────────────
+# ── Pre-flight: ensure user is in pcscd group ────────────────────────────────
+if ! groups "$USER" 2>/dev/null | grep -qw pcscd; then
+    sudo usermod -aG pcscd "$USER" 2>/dev/null \
+        && log "added $USER to pcscd group (re-login required for group take effect)" \
+        || warn "could not add $USER to pcscd group"
+fi
+
+# ── pcscd — enable socket (hotplug-aware) + service ────────────────────────
 log "enabling pcscd..."
-if systemctl is-active --quiet pcscd.socket 2>/dev/null; then
-    ok "pcscd.socket already active"
-elif systemctl enable --now pcscd.socket 2>/dev/null; then
-    ok "pcscd.socket enabled"
+systemctl enable --now pcscd.socket 2>/dev/null \
+    && ok "pcscd.socket enabled" \
+    || { systemctl enable --now pcscd 2>/dev/null \
+         && ok "pcscd.service enabled"; }
+sleep 2
+
+# ── GnuPG scdaemon — disable CCID so gpg doesn't steal the card from pcscd ─
+SCDAEMON_CONF="$HOME/.gnupg/scdaemon.conf"
+mkdir -p "$HOME/.gnupg" && chmod 700 "$HOME/.gnupg"
+if [[ -f "$SCDAEMON_CONF" ]] && grep -q "disable-ccid" "$SCDAEMON_CONF" 2>/dev/null; then
+    ok "scdaemon: CCID already disabled"
 else
-    systemctl enable --now pcscd 2>/dev/null || true
-    ok "pcscd enabled"
+    printf 'disable-ccid\n' >> "$SCDAEMON_CONF"
+    gpgconf --kill scdaemon 2>/dev/null || true
+    ok "scdaemon: CCID disabled (avoids conflict with pcscd)"
 fi
 
-sleep 1
-
-# ── NSS user db for browsers ─────────────────────────────────────────────────
-NSSDB="$HOME/.pki/nssdb"
-if [[ ! -f "$NSSDB/cert9.db" ]]; then
-    mkdir -p "$NSSDB"
-    certutil -d sql:"$NSSDB" -N --empty-password 2>/dev/null \
-        && ok "NSS db created at $NSSDB" \
-        || warn "certutil failed — skipping NSS db"
-fi
-
-# ── Register OpenSC module in user NSS db ───────────────────────────────────
-if [[ -n "$OPENSCLIB" ]] && [[ -f "$NSSDB/cert9.db" ]]; then
-    if modutil -dbdir sql:"$NSSDB" -list 2>/dev/null | grep -q "OpenSC"; then
-        ok "OpenSC module already registered in NSS"
-    else
-        modutil -dbdir sql:"$NSSDB" -add "OpenSC" \
-            -libfile "$OPENSCLIB" -mechanisms FRIENDLY 2>/dev/null \
-            && ok "OpenSC registered in NSS" \
-            || warn "modutil failed — p11-kit may conflict"
-    fi
-fi
-
-# ── Firefox profiles ────────────────────────────────────────────────────────
-log "configuring Firefox..."
-if command -v firefox &>/dev/null; then
-    for profile in "$HOME"/.mozilla/firefox/*.default-release; do
-        [[ -d "$profile" ]] || continue
-        PROFILE_DB="$profile"
-        if [[ -f "$PROFILE_DB/pkcs11.txt" ]]; then
-            ok "Firefox profile already has PKCS#11 modules: $(basename "$profile")"
-            continue
-        fi
-        mkdir -p "$PROFILE_DB"
-        if command -v modutil &>/dev/null; then
-            modutil -dbdir sql:"$PROFILE_DB" -create -force 2>/dev/null || true
-            modutil -dbdir sql:"$PROFILE_DB" \
-                -add "OpenSC" -libfile "$OPENSCLIB" \
-                -mechanisms FRIENDLY -force 2>/dev/null \
-                && ok "Firefox PKCS#11 configured: $(basename "$profile")" \
-                || warn "Firefox modutil failed for $(basename "$profile")"
-        fi
-    done
-fi
-
-# ── p11-kit system registration (for Chromium/Electron apps + Okular) ───────
-OPENSCLIB=$(find /usr/lib64 -name "opensc-pkcs11.so" 2>/dev/null | head -1)
-if [[ -f "/etc/pkcs11/modules/opensc.module" ]]; then
-    ok "OpenSC already in p11-kit"
-elif [[ -n "$OPENSCLIB" ]]; then
-    sudo tee /etc/pkcs11/modules/opensc.module > /dev/null << PKCS11CONF
+# ── p11-kit system module (already in /etc/pkcs11/modules from Containerfile) ─
+if [[ -f /etc/pkcs11/modules/opensc.module ]]; then
+    ok "p11-kit: OpenSC module present"
+else
+    log "p11-kit: registering OpenSC module..."
+    if [[ -n "$OPENSCLIB" ]]; then
+        sudo tee /etc/pkcs11/modules/opensc.module > /dev/null << PKCS11CONF
 module: $OPENSCLIB
 critical: no
 PKCS11CONF
-    ok "OpenSC registered in p11-kit"
+        ok "p11-kit: OpenSC registered"
+    fi
 fi
 
-# ── Okular PDF signing — register PKCS#11 in KDE's KMS ───────────────────────
+# ── NSS user db (shared by Chromium/Electron/Firefox) ────────────────────────
+NSSDB="$HOME/.pki/nssdb"
+mkdir -p "$NSSDB"
+if [[ ! -f "$NSSDB/cert9.db" ]]; then
+    certutil -d sql:"$NSSDB" -N --empty-password 2>/dev/null \
+        && ok "NSS db created" \
+        || warn "certutil failed — NSS db skipped"
+fi
+
+if [[ -n "$OPENSCLIB" ]] && [[ -f "$NSSDB/cert9.db" ]]; then
+    if modutil -dbdir sql:"$NSSDB" -list 2>/dev/null | grep -q "OpenSC"; then
+        ok "NSS: OpenSC already registered"
+    else
+        modutil -dbdir sql:"$NSSDB" -add "OpenSC" \
+            -libfile "$OPENSCLIB" -mechanisms FRIENDLY 2>/dev/null \
+            && ok "NSS: OpenSC registered" \
+            || warn "NSS: modutil failed"
+    fi
+fi
+
+# ── Firefox profiles ──────────────────────────────────────────────────────────
+log "configuring Firefox PKCS#11..."
+for profile in "$HOME"/.mozilla/firefox/*.default*; do
+    [[ -d "$profile" ]] || continue
+    if modutil -dbdir sql:"$profile" -list 2>/dev/null | grep -q "OpenSC"; then
+        ok "Firefox: $(basename "$profile") — OpenSC present"
+        continue
+    fi
+    if command -v modutil &>/dev/null; then
+        modutil -dbdir sql:"$profile" -create -force 2>/dev/null || true
+        modutil -dbdir sql:"$profile" \
+            -add "OpenSC" -libfile "$OPENSCLIB" \
+            -mechanisms FRIENDLY -force 2>/dev/null \
+            && ok "Firefox: $(basename "$profile") — PKCS#11 configured" \
+            || warn "Firefox: modutil failed for $(basename "$profile")"
+    fi
+done
+
+# Flatpak Firefox uses its own sandboxed NSS — register module inside the sandbox
+if command -v flatpak &>/dev/null; then
+    FLATPAK_FIREFOX_ID=$(flatpak list --app 2>/dev/null | grep -i firefox | awk '{print $1}' | head -1)
+    if [[ -n "$FLATPAK_FIREFOX_ID" ]]; then
+        log "configuring Flatpak Firefox..."
+        flatpak run --command=bash "$FLATPAK_FIREFOX_ID" -c \
+            'if [ ! -d "$HOME/.pki/nssdb" ]; then mkdir -p "$HOME/.pki/nssdb"; certutil -d sql:"$HOME/.pki/nssdb" -N --empty-password 2>/dev/null; fi
+             OPENSC_LIB=$(find /usr/lib -name "opensc-pkcs11.so" 2>/dev/null | head -1)
+             if [ -n "$OPENSC_LIB" ]; then
+               modutil -dbdir sql:"$HOME/.pki/nssdb" -add "OpenSC" -libfile "$OPENSC_LIB" -mechanisms FRIENDLY 2>/dev/null \
+                 && echo "Flatpak Firefox: OpenSC registered" || echo "Flatpak Firefox: modutil failed"
+             fi' 2>/dev/null \
+            && ok "Flatpak Firefox: PKCS#11 configured" \
+            || warn "Flatpak Firefox: PKCS#11 setup failed"
+    fi
+fi
+
+# ── Okular PDF signing (KDE) ─────────────────────────────────────────────────
 OKULAR_PKCS11_LIB="${OPENSCLIB:-/usr/lib64/pkcs11/opensc-pkcs11.so}"
 KDE_GLOBALS="$HOME/.config/kdeglobals"
 mkdir -p "$(dirname "$KDE_GLOBALS")"
-
-if [[ -f "$KDE_GLOBALS" ]] && grep -q "pkcs11 module" "$KDE_GLOBALS" 2>/dev/null; then
-    ok "Okular PKCS#11 already configured"
+if [[ -f "$KDE_GLOBALS" ]] && grep -q "pkcs11" "$KDE_GLOBALS" 2>/dev/null; then
+    ok "Okular: kdeglobals already has PKCS#11"
 else
     cat >> "$KDE_GLOBALS" 2>/dev/null << KDEPKCS11
 
 [Crypto]
 PKCS11Module=$OKULAR_PKCS11_LIB
 KDEPKCS11
-    ok "Okular PKCS#11 configured in kdeglobals"
+    ok "Okular: kdeglobals PKCS#11 configured"
 fi
 
-# Also configure Okular's own PKCS#11 settings via environment
-export CRYPTOGRAPHIC_MECHANISMS="RSA:DSA:ECDSA:SIGN_RSA:SIGN_DSA:SIGN_ECDSA"
-export PKCS11_MODULE_PATH="$OKULAR_PKCS11_LIB"
-
-# ── GnuPG scdaemon CCID disable ──────────────────────────────────────────────
-SCDAEMON_CONF="$HOME/.gnupg/scdaemon.conf"
-mkdir -p "$HOME/.gnupg" && chmod 700 "$HOME/.gnupg"
-if [[ ! -f "$SCDAEMON_CONF" ]] || ! grep -q "disable-ccid" "$SCDAEMON_CONF" 2>/dev/null; then
-    echo "disable-ccid" >> "$SCDAEMON_CONF"
-    gpgconf --kill scdaemon 2>/dev/null || true
-    ok "scdaemon configured (CCID disabled)"
+# ── Chromium/Chrome/Brave/Electron apps ─────────────────────────────────────
+# Use p11-kit proxy — apps that use NSS should find OpenSC via p11-kit
+# If Chrome doesn't pick it up automatically, you can set:
+#   NSS_USE_SHARED_DB=1 environment variable or use modutil on the system NSS db
+# System-wide NSS db for Chrome/Chromium:
+if [[ -d /etc/pki/nssdb ]] && [[ -n "$OPENSCLIB" ]]; then
+    if ! modutil -dbdir sql:/etc/pki/nssdb -list 2>/dev/null | grep -q "OpenSC"; then
+        sudo modutil -dbdir sql:/etc/pki/nssdb -add "OpenSC" \
+            -libfile "$OPENSCLIB" -mechanisms FRIENDLY 2>/dev/null \
+            && ok "System NSS: OpenSC registered" \
+            || warn "System NSS: modutil failed"
+    fi
 fi
 
 # ── Verify card is readable ──────────────────────────────────────────────────
 if command -v pkcs15-tool &>/dev/null; then
+    sleep 1
     CERTS=$(pkcs15-tool --list-certificates 2>/dev/null | grep -c "X.509 Certificate" || echo "0")
     if [[ "$CERTS" -gt 0 ]]; then
         ok "card readable — $CERTS certificate(s) found"
     else
-        warn "card inserted but no certs readable — try re-seating the card"
+        warn "no certs found — is the CAC card inserted? (try re-seating)"
     fi
 fi
 
