@@ -197,18 +197,20 @@ RUN dnf install -y --skip-broken \
 
 # ── Build regreet from source (clean GTK greeter for greetd) ──────────────────
 # rharish101/ReGreet v0.3.0 — requires Rust 1.85+ (Fedora 42 has 1.95)
-# Set CARGO_HOME to /var/tmp to avoid root home permission issues
+# Set CARGO_HOME to /tmp to avoid root home permission issues
+# Use codegen-units=1 for faster builds in container memory constraints
 RUN dnf install -y --skip-broken \
     rust cargo gtk4-devel libadwaita-devel \
     openssl-devel at-spi2-core-devel && \
-    mkdir -p /tmp/regreet-src /var/tmp/cargo-home && \
+    mkdir -p /tmp/regreet-src /tmp/cargo-home && \
     curl -fsSL https://github.com/rharish101/ReGreet/archive/refs/tags/0.3.0.tar.gz \
         -o /tmp/regreet.tar.gz && \
     tar xzf /tmp/regreet.tar.gz -C /tmp/regreet-src --strip-components=1 && \
-    CARGO_HOME=/var/tmp/cargo-home HOME=/var/tmp cargo build --release \
+    CARGO_HOME=/tmp/cargo-home HOME=/tmp cargo build --release \
+        -j 4 \
         --manifest-path /tmp/regreet-src/Cargo.toml && \
     install -Dm755 /tmp/regreet-src/target/release/regreet /usr/local/bin/regreet && \
-    rm -rf /tmp/regreet-src /var/tmp/cargo-home
+    rm -rf /tmp/regreet-src /tmp/cargo-home
 
 # ── Noctalia color config seed + greeter templates ──────────────────────────────
 RUN mkdir -p /etc/skel/.config/noctalia /etc/skel/.cache/noctalia
