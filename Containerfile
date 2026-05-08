@@ -158,7 +158,7 @@ COPY config/aktags/aktags.desktop /etc/skel/.config/autostart/aktags.desktop
 RUN mkdir -p /etc/skel/.config/noctalia /etc/skel/.cache/noctalia
 COPY config/noctalia/ /etc/skel/.config/noctalia/
 # greetd + cage for Wayland greeter; Noctalia renders theme-colored CSS
-RUN dnf install -y --skip-broken greetd cage || true && \
+RUN dnf install -y --skip-broken greetd cage regreet || true && \
     mkdir -p /etc/greetd
 # Seed a default dark regreet CSS so the greeter has styling even before first Noctalia render
 RUN printf '/* BlueAK default greeter CSS — replaced by Noctalia on first theme change */\n' \
@@ -175,6 +175,18 @@ RUN chmod 440 /etc/sudoers.d/noctalia-greeter
 COPY config/polkit-1/actions/com.blueak.sync-greeter-css.policy /usr/share/polkit-1/actions/com.blueak.sync-greeter-css.policy
 COPY config/systemd/blueak-sync-greeter-css.service /etc/skel/.config/systemd/user/blueak-sync-greeter-css.service
 COPY config/systemd/blueak-sync-greeter-css.path /etc/skel/.config/systemd/user/blueak-sync-greeter-css.path
+
+# ── greetd + regreet setup ───────────────────────────────────────────────────
+# regreet.toml: tells greetd to use regreet (Rust) with cage as the compositor
+RUN printf '[terminal]\nvt = 1\n\n[default_session]\ncommand = "/etc/greetd/regreet-launch.sh"\nuser = "greeter"\n' > /etc/greetd/regreet.toml
+COPY config/greetd/regreet-launch.sh /etc/greetd/regreet-launch.sh
+RUN chmod +x /etc/greetd/regreet-launch.sh && \
+    id greeter &>/dev/null || useradd -r -m -s /usr/bin/nologin -c "Greeter" greeter && \
+    usermod -aG video greeter && \
+    usermod -aG input greeter
+# Disable GDM; enable greetd as the display manager
+RUN systemctl disable gdm 2>/dev/null || true
+RUN systemctl enable greetd 2>/dev/null || true
 
 # ── nirinit — session restore for niri ───────────────────────────────────────
 # Download pre-built binary
