@@ -1,7 +1,0 @@
-[Unit]
-Description=Sync Noctalia-generated CSS to greetd
-After=default.target
-
-[Service]
-Type=oneshot
-ExecStart=/usr/bin/pkexec /usr/bin/install -m 644 %h/.cache/noctalia/regreet.css /etc/greetd/regreet.css
