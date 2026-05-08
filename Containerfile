@@ -179,7 +179,7 @@ COPY config/aktags/aktags.desktop /etc/skel/.config/autostart/aktags.desktop
 # Build: ensure this comment triggers CI
 
 # ── Build cage from source (Wayland kiosk compositor for regreet) ───────────────
-# cage-kiosk/cage v0.3.0 — wlroots 0.20 matches Fedora 44's wlroots
+# cage-kiosk/cage v0.3.0 — wlroots 0.20 matches Fedora 42's wlroots
 RUN dnf install -y --skip-broken \
     meson ninja-build scdoc \
     wayland-protocols-devel wayland-devel \
@@ -195,7 +195,7 @@ RUN dnf install -y --skip-broken \
     rm -rf /tmp/cage-src /tmp/cage-build
 
 # ── Build regreet from source (clean GTK greeter for greetd) ──────────────────
-# rharish101/ReGreet v0.3.0 — requires Rust 1.85+ (Fedora 44 has 1.95)
+# rharish101/ReGreet v0.3.0 — requires Rust 1.85+ (Fedora 42 has 1.95)
 RUN dnf install -y --skip-broken \
     rust cargo gtk4-devel libadwaita-devel \
     openssl-devel at-spi2-core-devel && \
