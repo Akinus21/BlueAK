@@ -176,6 +176,7 @@ COPY config/aktags/aktags.desktop /etc/skel/.config/autostart/aktags.desktop
 
 # ── AKSpraypainter — theme-to-wallpaper color sync (planned) ────────────────
 # TODO: Add AKSpraypainter binary once available
+# Build: ensure this comment triggers CI
 
 # ── Noctalia color config seed + ReGreet greeter templates ─────────────────
 RUN mkdir -p /etc/skel/.config/noctalia /etc/skel/.cache/noctalia
