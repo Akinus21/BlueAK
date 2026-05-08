@@ -178,26 +178,65 @@ COPY config/aktags/aktags.desktop /etc/skel/.config/autostart/aktags.desktop
 # TODO: Add AKSpraypainter binary once available
 # Build: ensure this comment triggers CI
 
-# ── Noctalia color config seed + ReGreet greeter templates ─────────────────
+# ── Build cage from source (Wayland kiosk compositor for regreet) ───────────────
+# cage-kiosk/cage v0.3.0 — wlroots 0.20 matches Fedora 44's wlroots
+RUN dnf install -y --skip-broken \
+    meson ninja-build scdoc \
+    wayland-protocols-devel wayland-devel \
+    pixman-devel xkbcommon-devel wlroots-devel \
+    libinput-devel libxkbcommon-x11-devel && \
+    mkdir -p /tmp/cage-src && \
+    curl -fsSL https://github.com/cage-kiosk/cage/releases/download/v0.3.0/cage-0.3.0.tar.gz \
+        -o /tmp/cage.tar.gz && \
+    tar xzf /tmp/cage.tar.gz -C /tmp/cage-src --strip-components=1 && \
+    meson setup /tmp/cage-src /tmp/cage-build --prefix=/usr -Dman-pages=disabled && \
+    meson compile -C /tmp/cage-build && \
+    meson install -C /tmp/cage-build && \
+    rm -rf /tmp/cage-src /tmp/cage-build
+
+# ── Build regreet from source (clean GTK greeter for greetd) ──────────────────
+# rharish101/ReGreet v0.3.0 — requires Rust 1.85+ (Fedora 44 has 1.95)
+RUN dnf install -y --skip-broken \
+    rust cargo gtk4-devel libadwaita-devel \
+    openssl-devel at-spi2-core-devel && \
+    mkdir -p /tmp/regreet-src && \
+    curl -fsSL https://github.com/rharish101/ReGreet/archive/refs/tags/0.3.0.tar.gz \
+        -o /tmp/regreet.tar.gz && \
+    tar xzf /tmp/regreet.tar.gz -C /tmp/regreet-src --strip-components=1 && \
+    cargo build --release --manifest-path /tmp/regreet-src/Cargo.toml && \
+    install -Dm755 /tmp/regreet-src/target/release/regreet /usr/local/bin/regreet && \
+    rm -rf /tmp/regreet-src
+
+# ── Noctalia color config seed + greeter templates ──────────────────────────────
 RUN mkdir -p /etc/skel/.config/noctalia /etc/skel/.cache/noctalia
 COPY config/noctalia/ /etc/skel/.config/noctalia/
-# greetd + gtkgreet for Wayland greeter; Noctalia renders theme-colored CSS
-# gtkgreet is bundled with greetd; cage/regreet are not in standard repos
+
+# ── greetd + regreet + cage setup ──────────────────────────────────────────────
+# greetd runs regreet inside cage (the Wayland compositor) for a GTK greeter
 RUN dnf install -y --skip-broken greetd || true && \
     mkdir -p /etc/greetd
 
-# ── Greeter CSS sync: sudoers + polkit ────────────────────────────────────────
-COPY config/sudoers.d/noctalia-greeter /etc/sudoers.d/noctalia-greeter
-RUN chmod 440 /etc/sudoers.d/noctalia-greeter
-COPY config/polkit-1/actions/com.blueak.sync-greeter-css.policy /usr/share/polkit-1/actions/com.blueak.sync-greeter-css.policy
+# Seed default greeter CSS (regreet uses /etc/greetd/regreet.css)
+RUN printf '/* BlueAK default greeter CSS */\n' \
+    'window { background: #0b070d; }\n' \
+    'box.login-box, box#main-box { background: rgba(11,7,13,0.72); border-radius: 16px; }\n' \
+    'label { color: #ad9bbb; }\n' \
+    'entry { background: rgba(36,19,48,0.6); color: #ad9bbb; border-radius: 8px; }\n' \
+    'button.suggested-action, button#login-button { background: #A8E000; color: #0C0E00; border-radius: 8px; }\n' \
+    > /etc/greetd/regreet.css
 
-# ── greetd + agreety setup ────────────────────────────────────────────────────
-# agreety is built into greetd itself — no cage/regreet needed
-# niri is launched as the session after greeter authentication
-RUN printf '[terminal]\nvt = 1\n\n[default_session]\ncommand = "/usr/bin/agreety --session /usr/bin/niri"\nuser = "greeter"\n' > /etc/greetd/config.toml
+# regreet-launch.sh: cage runs regreet with niri as the session
+COPY config/greetd/regreet-launch.sh /etc/greetd/regreet-launch.sh
+RUN chmod +x /etc/greetd/regreet-launch.sh
+
+# greetd config using regreet inside cage
+RUN printf '[terminal]\nvt = 1\n\n[default_session]\ncommand = "/etc/greetd/regreet-launch.sh"\nuser = "greeter"\n' > /etc/greetd/config.toml
+
+# Greeter user setup
 RUN id greeter &>/dev/null || useradd -r -m -s /usr/bin/nologin -c "Greeter" greeter && \
     usermod -aG video greeter && \
     usermod -aG input greeter
+
 # Disable GDM; enable greetd as the display manager
 RUN systemctl disable gdm 2>/dev/null || true
 RUN systemctl enable greetd 2>/dev/null || true
