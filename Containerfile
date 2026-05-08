@@ -25,20 +25,19 @@ RUN dnf install -y \
 
 # Noctalia Shell — via Terra repo (Fyra Labs)
 # https://docs.noctalia.dev/getting-started/installation
-RUN dnf install -y --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release && \
-    dnf install -y noctalia-shell || echo "Terra repo unavailable — install noctalia-shell at runtime"
+RUN dnf install -y --skip-broken --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release && \
+    dnf install -y --skip-broken noctalia-shell || echo "Terra repo unavailable — install noctalia-shell at runtime"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 3. CAC smart card support
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# coolkey: DoD CAC support (PIV/CAC cards)
-# udev rules: CAC reader hotplug detection
-RUN dnf install -y \
+# opensc provides the PKCS#11 module for DoD CAC/PIV cards
+# udev rules for CAC reader hotplug detection
+RUN dnf install -y --skip-broken \
     pcsc-lite \
     pcsc-lite-ccid \
     pcsc-tools \
     opensc \
-    coolkey \
     nss-tools \
     p11-kit \
     p11-kit-server \
@@ -63,7 +62,7 @@ RUN mkdir -p /etc/udev/rules.d && \
     printf '# CAC/PCSC smart card readers\n' \
     'SUBSYSTEM=="usb", ATTR{idVendor}=="04e6", ATTR{idProduct}=="e003", MODE="0660", GROUP="pcscd"\n' \
     'SUBSYSTEM=="usb", ATTR{idVendor}=="04e6", ATTR{idProduct}=="e004", MODE="0660", GROUP="pcscd"\n' \
-    'SUBSYSTEM=="usb", ATTR{idVendor}=="04e6", ATTR{idProduct}*"scr", MODE="0660", GROUP="pcscd"\n' \
+    'SUBSYSTEM=="usb", ATTR{idVendor}=="04e6", ATTR{idProduct}*="*scr*", MODE="0660", GROUP="pcscd"\n' \
     'SUBSYSTEM=="usb", ATTR{idVendor}=="0dc3", MODE="0660", GROUP="pcscd"\n' \
     'SUBSYSTEM=="usb", ATTR{idVendor}=="0b97", ATTR{idProduct}=="7762", MODE="0660", GROUP="pcscd"\n' \
     'SUBSYSTEM=="usb", ATTR{idVendor}=="0b97", ATTR{idProduct}=="7761", MODE="0660", GROUP="pcscd"\n' \
@@ -234,7 +233,7 @@ RUN curl -fsSL \
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # ── blueak-init script — copy first, then install ───────────────────────────────
 COPY config/blueak-init/blueak-init /tmp/blueak-init
-RUN rm -rf /usr/local && mkdir -p /usr/local/bin && \
+RUN mkdir -p /usr/local/bin && \
     install -m 755 /tmp/blueak-init /usr/local/bin/blueak-init && \
     rm -f /tmp/blueak-init
 
