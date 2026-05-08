@@ -162,11 +162,11 @@ RUN dnf install -y --skip-broken greetd cage || true && \
     mkdir -p /etc/greetd
 # Seed a default dark regreet CSS so the greeter has styling even before first Noctalia render
 RUN printf '/* BlueAK default greeter CSS — replaced by Noctalia on first theme change */\n' \
-    'window { background: #212337; }\n' \
-    'box.login-box, box#main-box { background: rgba(50,52,73,0.72); border-radius: 16px; }\n' \
-    'label { color: #ebfafa; }\n' \
-    'entry { background: rgba(50,52,73,0.6); color: #ebfafa; border-radius: 8px; }\n' \
-    'button.suggested-action, button#login-button { background: #04d1f9; color: #212337; border-radius: 8px; }\n' \
+    'window { background: #0b070d; }\n' \
+    'box.login-box, box#main-box { background: rgba(11,7,13,0.72); border-radius: 16px; }\n' \
+    'label { color: #ad9bbb; }\n' \
+    'entry { background: rgba(36,19,48,0.6); color: #ad9bbb; border-radius: 8px; }\n' \
+    'button.suggested-action, button#login-button { background: #A8E000; color: #0C0E00; border-radius: 8px; }\n' \
     > /etc/greetd/regreet.css
 
 # ── Greeter CSS sync: sudoers + polkit + systemd units ──────────────────────

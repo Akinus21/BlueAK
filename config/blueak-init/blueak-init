@@ -533,7 +533,7 @@ with open('$SETTINGS_FILE', 'w') as f:
     log "--- Noctalia plugins ---"
     local PLUGINS_DIR="$HOME/.config/noctalia/plugins"
     local PLUGINS_REPO="https://github.com/Akinus21/noctalia-plugins.git"
-    local DEFAULT_PLUGINS=("niri-keybinds" "linkding" "bitwarden")
+    local DEFAULT_PLUGINS=("niri-keybinds" "linkding" "bitwarden" "akspraypaint-provider")
     mkdir -p "$PLUGINS_DIR"
 
     for plugin in "${DEFAULT_PLUGINS[@]}"; do
