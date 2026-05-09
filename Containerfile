@@ -179,9 +179,8 @@ COPY config/aktags/aktags.desktop /etc/skel/.config/autostart/aktags.desktop
 # Build: ensure this comment triggers CI
 
 # ── Build cage from source (Wayland kiosk compositor for regreet) ───────────────
-# cage-kiosk/cage v0.1.4 — compatible with Fedora 42's wlroots 0.19
-# v0.3.0 requires wlroots 0.20 which is not available in Fedora 42
-# Fedora provides wlroots-0.19.pc but cage looks for wlroots.pc (unversioned)
+# cage-kiosk/cage v0.3.0 — requires wlroots 0.20 (available in Fedora 44)
+# Fedora provides wlroots-<version>.pc but cage looks for wlroots.pc (unversioned)
 RUN dnf install -y --skip-broken \
     meson ninja-build scdoc \
     wayland-protocols-devel wayland-devel \
@@ -192,7 +191,7 @@ RUN dnf install -y --skip-broken \
     if [ -z "$WLROOTS_PC" ]; then echo "ERROR: no wlroots .pc file found"; exit 1; fi && \
     ln -sf "$WLROOTS_PC" /usr/share/pkgconfig/wlroots.pc && \
     mkdir -p /tmp/cage-src && \
-    curl -fsSL https://github.com/cage-kiosk/cage/releases/download/v0.1.4/cage-0.1.4.tar.gz \
+    curl -fsSL https://github.com/cage-kiosk/cage/releases/download/v0.3.0/cage-0.3.0.tar.gz \
         -o /tmp/cage.tar.gz && \
     tar xzf /tmp/cage.tar.gz -C /tmp/cage-src --strip-components=1 && \
     meson setup /tmp/cage-src /tmp/cage-build --prefix=/usr \
