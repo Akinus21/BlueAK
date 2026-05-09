@@ -1,0 +1,21 @@
+[Unit]
+Description=BlueAK Sync Greeter CSS from Noctalia
+After=local-fs.target
+PartOf=graphical.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/bash -c '\
+  while true; do \
+    SRC="$HOME/.cache/noctalia/regreet.css"; \
+    DEST="/etc/greetd/regreet.css"; \
+    if [ -f "$SRC" ] && [ -s "$SRC" ]; then \
+      cp "$SRC" "$DEST" && chmod 644 "$DEST"; \
+    fi; \
+    sleep 10; \
+  done'
+Restart=on-failure
+WatchdogSec=30
+
+[Install]
+WantedBy=graphical.target

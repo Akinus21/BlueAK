@@ -207,17 +207,21 @@ RUN mkdir -p /etc/skel/.config/noctalia /etc/skel/.cache/noctalia
 COPY config/noctalia/ /etc/skel/.config/noctalia/
 
 # ── greetd + regreet + weston setup ────────────────────────────────────────────
+COPY config/systemd/blueak-sync-greeter-css.service /etc/systemd/system/blueak-sync-greeter-css.service
+RUN systemctl enable blueak-sync-greeter-css 2>/dev/null || true
+
 # greetd runs regreet inside weston kiosk shell for a GTK greeter
 RUN dnf install -y --skip-broken greetd || true && \
     mkdir -p /etc/greetd
 
-# Seed default greeter CSS (regreet uses /etc/greetd/regreet.css)
-RUN printf '/* BlueAK default greeter CSS */\n' \
-    'window { background: #0b070d; }\n' \
-    'box.login-box, box#main-box { background: rgba(11,7,13,0.72); border-radius: 16px; }\n' \
-    'label { color: #ad9bbb; }\n' \
-    'entry { background: rgba(36,19,48,0.6); color: #ad9bbb; border-radius: 8px; }\n' \
-    'button.suggested-action, button#login-button { background: #A8E000; color: #0C0E00; border-radius: 8px; }\n' \
+# Default greeter CSS (fallback until Noctalia renders the themed version at login)
+RUN printf 'window { background: #212337; }\n' \
+    'box.login-box, box#main-box { background: rgba(50,52,73,0.72); border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); padding: 40px 48px; margin: auto; min-width: 380px; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }\n' \
+    'label { color: #ebfafa; font-size: 13px; }\n' \
+    'label.time, label.date { color: #ebfafa; font-size: 48px; font-weight: 300; margin-bottom: 4px; }\n' \
+    'entry { background: rgba(112,129,208,0.3); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #ebfafa; padding: 10px 14px; font-size: 14px; caret-color: #04d1f9; min-height: 20px; }\n' \
+    'entry:focus { border-color: #04d1f9; background: rgba(112,129,208,0.4); box-shadow: 0 0 0 2px rgba(4,209,249,0.25); }\n' \
+    'button.suggested-action, button#login-button { background: #04d1f9; color: #212337; font-weight: 600; border-radius: 8px; border: none; padding: 10px 24px; min-height: 20px; }\n' \
     > /etc/greetd/regreet.css
 
 # regreet-launch.sh: weston kiosk shell runs regreet with niri as the session
