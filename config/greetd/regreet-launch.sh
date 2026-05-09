@@ -14,4 +14,4 @@ else
     export GDK_DPI_SCALE=1
 fi
 
-exec weston --shell=kiosk --tty=1 -- regreet -c /etc/greetd/regreet.css -s niri
+exec weston --backend=drm --shell=kiosk --tty=1 -- regreet -c /etc/greetd/regreet.css -s niri
