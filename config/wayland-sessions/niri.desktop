@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=niri
+Comment=nicer ion-related evictions — scrollable tiling WM for Wayland
+Exec=niri
+Type=WaylandSession
+DesktopNames=niri

@@ -301,6 +301,10 @@ RUN if [ "$GAMING" = "true" ]; then \
         printf '#!/bin/sh\nexport __NV_PRIME_RENDER_OFFLOAD=1\nexport __GLX_VENDOR_LIBRARY_NAME=nvidia\nexport VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.x86_64.json:/usr/share/vulkan/icd.d/nvidia_icd.i686.json\n' > /etc/profile.d/blueak-nvidia-gaming.sh; \
     fi
 
+# niri session file for regreet session picker
+RUN mkdir -p /usr/share/wayland-sessions
+COPY config/wayland-sessions/niri.desktop /usr/share/wayland-sessions/niri.desktop
+
 COPY config/niri/     /etc/skel/.config/niri/
 
 # ── Eldritch Theme — GTK ────────────────────────────────────────────────────
