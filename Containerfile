@@ -227,10 +227,14 @@ RUN chmod +x /etc/greetd/regreet-launch.sh
 # greetd config using regreet inside weston kiosk
 RUN printf '[terminal]\nvt = 1\n\n[default_session]\ncommand = "/etc/greetd/regreet-launch.sh"\nuser = "greeter"\n' > /etc/greetd/config.toml
 
-# Greeter user setup
-RUN id greeter &>/dev/null || useradd -r -m -s /usr/bin/nologin -c "Greeter" greeter && \
-    usermod -aG video greeter && \
-    usermod -aG input greeter
+# Greeter user setup via sysusers.d (bootc-compatible — persists at boot)
+# sysusers.d creates the user at boot before greetd starts
+RUN printf 'u greeter - "Greeter" /var/lib/greeter /usr/bin/nologin\n' \
+        > /usr/lib/sysusers.d/greeter.conf && \
+    printf 'm greeter video\nm greeter input\n' \
+        >> /usr/lib/sysusers.d/greeter.conf && \
+    printf 'd /var/lib/greeter 0750 greeter greeter\n' \
+        > /usr/lib/tmpfiles.d/greeter.conf
 
 # Disable GDM; enable greetd as the display manager
 RUN systemctl disable gdm 2>/dev/null || true
