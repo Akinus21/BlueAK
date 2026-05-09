@@ -319,7 +319,7 @@ IRONEOF
         ok "Noctalia: present"
     fi
 
-    # ── 5. Flatpak (Bitwarden + Spotify) ──────────────────────────────────────
+    # ── 5. Flatpak (Bitwarden) ──────────────────────────────────────────────
     log "--- Flatpak ---"
     flatpak remote-add --user --if-not-exists flathub \
         https://dl.flathub.org/repo/flathub.flatpakrepo 2>/dev/null \
@@ -333,14 +333,6 @@ IRONEOF
     else
         ok "Bitwarden present"
     fi
-    if ! flatpak list --user --app 2>/dev/null | grep -q "com.spotify.Client"; then
-        log "Installing Spotify..."
-        flatpak install --user -y flathub com.spotify.Client 2>&1 \
-            && ok "Spotify installed" \
-            || warn "Spotify install failed"
-    else
-        ok "Spotify present"
-    fi
 
     # ── Bitwarden CLI (bw) ──────────────────────────────────────────────────
     log "--- Bitwarden CLI (bw) ---"
@@ -348,19 +340,6 @@ IRONEOF
         warn "bw: not found — install with: brew install bitwarden-cli"
     else
         ok "bw: present"
-    fi
-
-    # ── spicetify (Spotify CLI customization) ────────────────────────────────
-    log "--- Spicetify CLI ---"
-    if ! command -v spicetify &>/dev/null; then
-        log "Installing spicetify..."
-        if curl -fsSL https://raw.githubusercontent.com/spicetify/cli/main/install.sh | sh 2>&1; then
-            ok "spicetify installed"
-        else
-            warn "spicetify install failed"
-        fi
-    else
-        ok "spicetify present"
     fi
 
     # ── Gaming (nvidia variant) ──────────────────────────────────────────────
