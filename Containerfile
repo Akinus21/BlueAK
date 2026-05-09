@@ -181,21 +181,24 @@ COPY config/aktags/aktags.desktop /etc/skel/.config/autostart/aktags.desktop
 # ── Build cage from source (Wayland kiosk compositor for regreet) ───────────────
 # cage-kiosk/cage v0.1.4 — compatible with Fedora 42's wlroots 0.19
 # v0.3.0 requires wlroots 0.20 which is not available in Fedora 42
-# Fedora puts wlroots.pc in /usr/lib64/pkgconfig — add to PKG_CONFIG_PATH
+# Fedora provides wlroots-0.19.pc but cage looks for wlroots.pc (unversioned)
+# Create symlink in /usr/share/pkgconfig (guaranteed to be in pkg-config search)
 RUN dnf install -y --skip-broken \
     meson ninja-build scdoc \
     wayland-protocols-devel wayland-devel \
     pixman-devel libxkbcommon-devel wlroots-devel \
     libinput-devel && \
+    WLROOTS_PC=$(find /usr -name 'wlroots-0.19.pc' 2>/dev/null | head -1) && \
+    if [ -n "$WLROOTS_PC" ]; then ln -sf "$WLROOTS_PC" /usr/share/pkgconfig/wlroots.pc; fi && \
     mkdir -p /tmp/cage-src && \
     curl -fsSL https://github.com/cage-kiosk/cage/releases/download/v0.1.4/cage-0.1.4.tar.gz \
         -o /tmp/cage.tar.gz && \
     tar xzf /tmp/cage.tar.gz -C /tmp/cage-src --strip-components=1 && \
-    PKG_CONFIG_PATH=/usr/lib64/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig \
-        meson setup /tmp/cage-src /tmp/cage-build --prefix=/usr -Dman-pages=disabled && \
-        meson compile -C /tmp/cage-build && \
-        meson install -C /tmp/cage-build && \
-        rm -rf /tmp/cage-src /tmp/cage-build
+    meson setup /tmp/cage-src /tmp/cage-build --prefix=/usr \
+        -Dman-pages=disabled && \
+    meson compile -C /tmp/cage-build && \
+    meson install -C /tmp/cage-build && \
+    rm -rf /tmp/cage-src /tmp/cage-build
 
 # wtype — needed by cage/regreet for virtual keyboard input
 RUN dnf install -y --skip-broken wtype || true
