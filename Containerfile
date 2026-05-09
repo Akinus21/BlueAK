@@ -182,14 +182,15 @@ COPY config/aktags/aktags.desktop /etc/skel/.config/autostart/aktags.desktop
 # cage-kiosk/cage v0.1.4 — compatible with Fedora 42's wlroots 0.19
 # v0.3.0 requires wlroots 0.20 which is not available in Fedora 42
 # Fedora provides wlroots-0.19.pc but cage looks for wlroots.pc (unversioned)
-# Create symlink in /usr/share/pkgconfig (guaranteed to be in pkg-config search)
 RUN dnf install -y --skip-broken \
     meson ninja-build scdoc \
     wayland-protocols-devel wayland-devel \
     pixman-devel libxkbcommon-devel wlroots-devel \
     libinput-devel && \
-    WLROOTS_PC=$(find /usr -name 'wlroots-0.19.pc' 2>/dev/null | head -1) && \
-    if [ -n "$WLROOTS_PC" ]; then ln -sf "$WLROOTS_PC" /usr/share/pkgconfig/wlroots.pc; fi && \
+    WLROOTS_PC=$(find /usr/lib64/pkgconfig /usr/share/pkgconfig -name 'wlroots*.pc' 2>/dev/null | head -1) && \
+    echo "Found wlroots pc: $WLROOTS_PC" && \
+    if [ -z "$WLROOTS_PC" ]; then echo "ERROR: no wlroots .pc file found"; exit 1; fi && \
+    ln -sf "$WLROOTS_PC" /usr/share/pkgconfig/wlroots.pc && \
     mkdir -p /tmp/cage-src && \
     curl -fsSL https://github.com/cage-kiosk/cage/releases/download/v0.1.4/cage-0.1.4.tar.gz \
         -o /tmp/cage.tar.gz && \
