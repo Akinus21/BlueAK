@@ -178,41 +178,11 @@ COPY config/aktags/aktags.desktop /etc/skel/.config/autostart/aktags.desktop
 # TODO: Add AKSpraypainter binary once available
 # Build: ensure this comment triggers CI
 
-# ── Build wlroots 0.20 and cage 0.3.0 from source ───────────────────────────────
-# Fedora 42 ships wlroots 0.19 with incomplete headers (missing DRM lease).
-# Fedora 44 has wlroots 0.20. Build wlroots 0.20 from source to ensure
-# complete headers, then build cage against it in the same RUN block so
-# cage finds the freshly installed wlroots headers, not the system package.
-RUN dnf install -y --skip-broken \
-    meson ninja-build scdoc \
-    wayland-protocols-devel wayland-devel \
-    pixman-devel libxkbcommon-devel \
-    libinput-devel libseat-devel \
-    libdrm-devel mesa-libgbm-devel \
-    libdisplay-info-devel libliftoff-devel \
-    xcb-util-errors-devel xcb-util-renderutil-devel xcb-util-wm-devel \
-    libxcb-devel libX11-devel \
-    vulkan-headers vulkan-loader-devel \
-    glslang systemd-devel xz-devel libxml2-devel libffi-devel \
-    hwdata && \
-    mkdir -p /tmp/wlroots-src /tmp/cage-src && \
-    curl -fsSL https://gitlab.freedesktop.org/wlroots/wlroots/-/archive/0.20.0/wlroots-0.20.0.tar.gz \
-        -o /tmp/wlroots.tar.gz && \
-    curl -fsSL https://github.com/cage-kiosk/cage/releases/download/v0.3.0/cage-0.3.0.tar.gz \
-        -o /tmp/cage.tar.gz && \
-    tar xzf /tmp/wlroots.tar.gz -C /tmp/wlroots-src --strip-components=1 && \
-    tar xzf /tmp/cage.tar.gz -C /tmp/cage-src --strip-components=1 && \
-    meson setup /tmp/wlroots-src /tmp/wlroots-build --prefix=/usr && \
-    meson compile -C /tmp/wlroots-build && \
-    meson install -C /tmp/wlroots-build && \
-    rm -rf /tmp/wlroots-src /tmp/wlroots-build && \
-    meson setup /tmp/cage-src /tmp/cage-build --prefix=/usr \
-        -Dman-pages=disabled && \
-    meson compile -C /tmp/cage-build && \
-    meson install -C /tmp/cage-build && \
-    rm -rf /tmp/cage-src /tmp/cage-build /tmp/wlroots.tar.gz /tmp/cage.tar.gz
+# ── Install weston for kiosk mode (hosts regreet greeter) ─────────────────────────
+# weston --shell=kiosk replaces cage — no source builds needed, available in repos
+RUN dnf install -y --skip-broken weston
 
-# wtype — needed by cage/regreet for virtual keyboard input
+# wtype — needed by weston/regreet for virtual keyboard input
 RUN dnf install -y --skip-broken wtype || true
 
 # ── Build regreet from source (clean GTK greeter for greetd) ──────────────────
@@ -236,8 +206,8 @@ RUN dnf install -y --skip-broken \
 RUN mkdir -p /etc/skel/.config/noctalia /etc/skel/.cache/noctalia
 COPY config/noctalia/ /etc/skel/.config/noctalia/
 
-# ── greetd + regreet + cage setup ──────────────────────────────────────────────
-# greetd runs regreet inside cage (the Wayland compositor) for a GTK greeter
+# ── greetd + regreet + weston setup ────────────────────────────────────────────
+# greetd runs regreet inside weston kiosk shell for a GTK greeter
 RUN dnf install -y --skip-broken greetd || true && \
     mkdir -p /etc/greetd
 
@@ -250,11 +220,11 @@ RUN printf '/* BlueAK default greeter CSS */\n' \
     'button.suggested-action, button#login-button { background: #A8E000; color: #0C0E00; border-radius: 8px; }\n' \
     > /etc/greetd/regreet.css
 
-# regreet-launch.sh: cage runs regreet with niri as the session
+# regreet-launch.sh: weston kiosk shell runs regreet with niri as the session
 COPY config/greetd/regreet-launch.sh /etc/greetd/regreet-launch.sh
 RUN chmod +x /etc/greetd/regreet-launch.sh
 
-# greetd config using regreet inside cage
+# greetd config using regreet inside weston kiosk
 RUN printf '[terminal]\nvt = 1\n\n[default_session]\ncommand = "/etc/greetd/regreet-launch.sh"\nuser = "greeter"\n' > /etc/greetd/config.toml
 
 # Greeter user setup
