@@ -225,7 +225,7 @@ COPY config/greetd/regreet-launch.sh /etc/greetd/regreet-launch.sh
 RUN chmod +x /etc/greetd/regreet-launch.sh
 
 # greetd config using regreet inside weston kiosk
-RUN printf '[terminal]\nvt = 1\n\n[default_session]\ncommand = "/etc/greetd/regreet-launch.sh"\nuser = "greeter"\n' > /etc/greetd/config.toml
+RUN printf '[terminal]\nvt = 1\n\n[default_session]\ncommand = "/bin/bash /etc/greetd/regreet-launch.sh"\nuser = "greeter"\n' > /etc/greetd/config.toml
 
 # Greeter user setup via sysusers.d (bootc-compatible — persists at boot)
 # sysusers.d creates the user at boot before greetd starts
