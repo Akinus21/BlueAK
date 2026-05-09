@@ -178,9 +178,11 @@ COPY config/aktags/aktags.desktop /etc/skel/.config/autostart/aktags.desktop
 # TODO: Add AKSpraypainter binary once available
 # Build: ensure this comment triggers CI
 
-# ── Build wlroots 0.20 from source (needed for cage 0.3.0 on Fedora 42 nvidia) ──
-# The nvidia variant uses Fedora 42 which ships wlroots 0.19.
-# cage 0.3.0 requires wlroots 0.20 — build it from source.
+# ── Build wlroots 0.20 and cage 0.3.0 from source ───────────────────────────────
+# Fedora 42 ships wlroots 0.19 with incomplete headers (missing DRM lease).
+# Fedora 44 has wlroots 0.20. Build wlroots 0.20 from source to ensure
+# complete headers, then build cage against it in the same RUN block so
+# cage finds the freshly installed wlroots headers, not the system package.
 RUN dnf install -y --skip-broken \
     meson ninja-build scdoc \
     wayland-protocols-devel wayland-devel \
@@ -191,33 +193,24 @@ RUN dnf install -y --skip-broken \
     xcb-util-errors-devel xcb-util-renderutil-devel xcb-util-wm-devel \
     libxcb-devel libX11-devel \
     vulkan-headers vulkan-loader-devel \
-    glslang systemd-devel xz-devel libxml2-devel \
+    glslang systemd-devel xz-devel libxml2-devel libffi-devel \
     hwdata && \
-    mkdir -p /tmp/wlroots-src && \
+    mkdir -p /tmp/wlroots-src /tmp/cage-src && \
     curl -fsSL https://gitlab.freedesktop.org/wlroots/wlroots/-/archive/0.20.0/wlroots-0.20.0.tar.gz \
         -o /tmp/wlroots.tar.gz && \
+    curl -fsSL https://github.com/cage-kiosk/cage/releases/download/v0.3.0/cage-0.3.0.tar.gz \
+        -o /tmp/cage.tar.gz && \
     tar xzf /tmp/wlroots.tar.gz -C /tmp/wlroots-src --strip-components=1 && \
+    tar xzf /tmp/cage.tar.gz -C /tmp/cage-src --strip-components=1 && \
     meson setup /tmp/wlroots-src /tmp/wlroots-build --prefix=/usr && \
     meson compile -C /tmp/wlroots-build && \
     meson install -C /tmp/wlroots-build && \
-    rm -rf /tmp/wlroots-src /tmp/wlroots-build
-
-# ── Build cage from source (Wayland kiosk compositor for regreet) ───────────────
-# cage-kiosk/cage v0.3.0 — uses wlroots 0.20 built above
-RUN dnf install -y --skip-broken \
-    meson ninja-build scdoc \
-    wayland-protocols-devel wayland-devel \
-    pixman-devel libxkbcommon-devel wlroots-devel \
-    libinput-devel && \
-    mkdir -p /tmp/cage-src && \
-    curl -fsSL https://github.com/cage-kiosk/cage/releases/download/v0.3.0/cage-0.3.0.tar.gz \
-        -o /tmp/cage.tar.gz && \
-    tar xzf /tmp/cage.tar.gz -C /tmp/cage-src --strip-components=1 && \
+    rm -rf /tmp/wlroots-src /tmp/wlroots-build && \
     meson setup /tmp/cage-src /tmp/cage-build --prefix=/usr \
         -Dman-pages=disabled && \
     meson compile -C /tmp/cage-build && \
     meson install -C /tmp/cage-build && \
-    rm -rf /tmp/cage-src /tmp/cage-build
+    rm -rf /tmp/cage-src /tmp/cage-build /tmp/wlroots.tar.gz /tmp/cage.tar.gz
 
 # wtype — needed by cage/regreet for virtual keyboard input
 RUN dnf install -y --skip-broken wtype || true
