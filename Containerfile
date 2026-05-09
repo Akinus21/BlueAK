@@ -178,18 +178,32 @@ COPY config/aktags/aktags.desktop /etc/skel/.config/autostart/aktags.desktop
 # TODO: Add AKSpraypainter binary once available
 # Build: ensure this comment triggers CI
 
+# ── Build wlroots 0.20 from source (needed for cage 0.3.0 on Fedora 42 nvidia) ──
+# The nvidia variant uses Fedora 42 which ships wlroots 0.19.
+# cage 0.3.0 requires wlroots 0.20 — build it from source.
+RUN dnf install -y --skip-broken \
+    meson ninja-build scdoc \
+    wayland-protocols-devel wayland-devel \
+    pixman-devel libxkbcommon-devel \
+    libinput-devel libseat-devel \
+    libdrm-devel libgbm-devel && \
+    mkdir -p /tmp/wlroots-src && \
+    curl -fsSL https://gitlab.freedesktop.org/wlroots/wlroots/-/archive/0.20.0/wlroots-0.20.0.tar.gz \
+        -o /tmp/wlroots.tar.gz && \
+    tar xzf /tmp/wlroots.tar.gz -C /tmp/wlroots-src --strip-components=1 && \
+    meson setup /tmp/wlroots-src /tmp/wlroots-build --prefix=/usr \
+        -Dman-pages=disabled && \
+    meson compile -C /tmp/wlroots-build && \
+    meson install -C /tmp/wlroots-build && \
+    rm -rf /tmp/wlroots-src /tmp/wlroots-build
+
 # ── Build cage from source (Wayland kiosk compositor for regreet) ───────────────
-# cage-kiosk/cage v0.3.0 — requires wlroots 0.20 (available in Fedora 44)
-# Fedora provides wlroots-<version>.pc but cage looks for wlroots.pc (unversioned)
+# cage-kiosk/cage v0.3.0 — uses wlroots 0.20 built above
 RUN dnf install -y --skip-broken \
     meson ninja-build scdoc \
     wayland-protocols-devel wayland-devel \
     pixman-devel libxkbcommon-devel wlroots-devel \
     libinput-devel && \
-    WLROOTS_PC=$(find /usr/lib64/pkgconfig /usr/share/pkgconfig -name 'wlroots*.pc' 2>/dev/null | head -1) && \
-    echo "Found wlroots pc: $WLROOTS_PC" && \
-    if [ -z "$WLROOTS_PC" ]; then echo "ERROR: no wlroots .pc file found"; exit 1; fi && \
-    ln -sf "$WLROOTS_PC" /usr/share/pkgconfig/wlroots.pc && \
     mkdir -p /tmp/cage-src && \
     curl -fsSL https://github.com/cage-kiosk/cage/releases/download/v0.3.0/cage-0.3.0.tar.gz \
         -o /tmp/cage.tar.gz && \
