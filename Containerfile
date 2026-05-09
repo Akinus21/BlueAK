@@ -186,13 +186,18 @@ RUN dnf install -y --skip-broken \
     wayland-protocols-devel wayland-devel \
     pixman-devel libxkbcommon-devel \
     libinput-devel libseat-devel \
-    libdrm-devel libgbm-devel && \
+    libdrm-devel mesa-libgbm-devel \
+    libdisplay-info-devel libliftoff-devel \
+    xcb-util-errors-devel xcb-util-renderutil-devel xcb-util-wm-devel \
+    libxcb-devel libX11-devel \
+    vulkan-headers vulkan-loader-devel \
+    glslang systemd-devel xz-devel libxml2-devel \
+    hwdata && \
     mkdir -p /tmp/wlroots-src && \
     curl -fsSL https://gitlab.freedesktop.org/wlroots/wlroots/-/archive/0.20.0/wlroots-0.20.0.tar.gz \
         -o /tmp/wlroots.tar.gz && \
     tar xzf /tmp/wlroots.tar.gz -C /tmp/wlroots-src --strip-components=1 && \
-    meson setup /tmp/wlroots-src /tmp/wlroots-build --prefix=/usr \
-        -Dman-pages=disabled && \
+    meson setup /tmp/wlroots-src /tmp/wlroots-build --prefix=/usr && \
     meson compile -C /tmp/wlroots-build && \
     meson install -C /tmp/wlroots-build && \
     rm -rf /tmp/wlroots-src /tmp/wlroots-build
