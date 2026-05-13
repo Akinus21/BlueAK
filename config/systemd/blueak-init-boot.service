@@ -1,0 +1,60 @@
+[Unit]
+Description=BlueAK bootstrapper — runs blueak-init for all users on boot
+After=network-online.target
+Before=display-manager.service
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+ExecStartPre=mkdir -p /run/blueak
+ExecStart=/bin/bash -c '
+    set -euo pipefail
+    MARKER_DIR="/var/lib/blueak/init"
+    mkdir -p "$MARKER_DIR"
+    # Run as each user who has a home directory
+    for homedir in /home/*; do
+        [[ -d "$homedir" ]] || continue
+        user="$(basename "$homedir")"
+        uid="$(id -u "$user" 2>/dev/null)" || continue
+        [[ "$uid" -ge 1000 ]] || continue
+
+        # Check if this users blueak-init has already run this boot
+        marker="$MARKER_DIR/$user"
+        [[ -f "$marker" ]] && continue
+
+        # Set up environment and run blueak-init for this user
+        XDG_RUNTIME_DIR="/run/user/$uid" \
+        DISPLAY="${DISPLAY:-:0}" \
+        WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}" \
+        HOME="$homedir" \
+        USER="$user" \
+        PATH="/usr/local/bin:/usr/bin:/bin" \
+        /bin/bash -c "
+            [[ -d \"$homedir/.homebrew/bin\" ]] && PATH=\"$homedir/.homebrew/bin:$PATH\"
+            [[ -d \"/home/linuxbrew/.linuxbrew/bin\" ]] && PATH=\"/home/linuxbrew/.linuxbrew/bin:$PATH\"
+            exec /usr/local/bin/blueak-init
+        " &>/var/log/blueak/"$user".log &
+
+        # Record that we triggered this user (prevents duplicate runs on multi-user systems)
+        touch "$marker"
+    done
+    # Also run for root if applicable
+    if [[ -x /usr/local/bin/blueak-init ]] && [[ "$(id -u)" -eq 0 ]]; then
+        root_marker="$MARKER_DIR/root"
+        [[ -f "$root_marker" ]] && exit 0
+        XDG_RUNTIME_DIR="/run/user/0" \
+        HOME=/root \
+        USER=root \
+        PATH="/usr/local/bin:/usr/bin:/bin" \
+        /bin/bash -c "
+            exec /usr/local/bin/blueak-init
+        " &>/var/log/blueak/root.log &
+        touch "$root_marker"
+    fi
+'
+StandardOutput=journal
+StandardError=journal+console
+RemainAfterExit=no
+
+[Install]
+WantedBy=multi-user.target

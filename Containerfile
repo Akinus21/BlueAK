@@ -283,6 +283,10 @@ COPY config/systemd/ollama.service /etc/skel/.config/systemd/user/ollama.service
 COPY config/cac/cac-setup /etc/skel/.local/bin/cac-setup
 RUN chmod +x /etc/skel/.local/bin/cac-setup
 
+# Boot-time blueak-init: runs blueak-init for all users before display manager
+COPY config/systemd/blueak-init-boot.service /etc/systemd/system/blueak-init-boot.service
+RUN systemctl enable blueak-init-boot 2>/dev/null || true
+
 # Bundled DoD root certificates for CAC (imported by cac-setup)
 RUN mkdir -p /etc/skel/.local/share/blueak/cac
 COPY config/cac/certs/ /etc/skel/.local/share/blueak/cac/certs/
