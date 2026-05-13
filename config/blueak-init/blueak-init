@@ -139,19 +139,6 @@ main() {
     fi
     echo $$ > "$LOCK_FILE"
 
-    # Time-based skip: don't run more than once per SYNC_INTERVAL seconds
-    if [[ -f "$SYNC_MARKER" ]]; then
-        local LAST_SYNC
-        LAST_SYNC=$(stat -c %Y "$SYNC_MARKER" 2>/dev/null || echo 0)
-        local NOW
-        NOW=$(date +%s)
-        if (( NOW - LAST_SYNC < SYNC_INTERVAL )); then
-            rm -f "$LOCK_FILE"
-            echo "blueak-init skipped: synced $(( (NOW - LAST_SYNC) / 60 ))m ago (interval: $(( SYNC_INTERVAL / 60 ))m)"
-            return 0
-        fi
-    fi
-
     # Remove strict error-exit for the background run so one failure doesn't kill everything
     set +e
 

@@ -172,7 +172,4 @@ if command -v pkcs15-tool &>/dev/null; then
     fi
 fi
 
-MARKER="$HOME/.local/share/blueak/.cac-setup-done"
-mkdir -p "$(dirname "$MARKER")"
-touch "$MARKER"
 ok "CAC setup complete"
