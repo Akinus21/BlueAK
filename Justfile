@@ -334,3 +334,139 @@ format:
     fi
     # Run shfmt on all Bash scripts
     /usr/bin/find . -iname "*.sh" -type f -exec shfmt --write "{}" ';'
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# CAC / Smartcard Commands
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Re-run CAC reader + certificate setup
+[group('CAC')]
+cac-setup:
+    #!/usr/bin/env bash
+    set -eoux pipefail
+    if [[ -x ~/.local/bin/cac-setup ]]; then
+        ~/.local/bin/cac-setup
+    elif [[ -x /usr/local/bin/cac-setup ]]; then
+        sudo /usr/local/bin/cac-setup
+    else
+        echo "cac-setup not found"
+        exit 1
+    fi
+
+# Check if CAC card is detected and readable
+[group('CAC')]
+cac-status:
+    #!/usr/bin/env bash
+    set -eoux pipefail
+    echo "=== pcscd status ==="
+    systemctl is-active pcscd.socket pcscd.service 2>/dev/null || echo "pcscd not running"
+    echo ""
+    echo "=== card detection ==="
+    if command -v pcsc_scan &>/dev/null; then
+        pcsc_scan 2>&1 | head -20
+    else
+        echo "pcsc_scan not available"
+    fi
+    echo ""
+    echo "=== pkcs15-tool ==="
+    if command -v pkcs15-tool &>/dev/null; then
+        pkcs15-tool --list-certificates 2>&1 || echo "no certificates found"
+    else
+        echo "pkcs15-tool not available"
+    fi
+    echo ""
+    echo "=== NSS DB modules ==="
+    if command -v modutil &>/dev/null; then
+        modutil -dbdir sql:$HOME/.pki/nssdb -list 2>/dev/null || echo "NSS db not accessible"
+    fi
+
+# Open Firefox with CAC/pkcs11 environment
+[group('CAC')]
+firefox-cac:
+    #!/usr/bin/env bash
+    set -eoux pipefail
+    export NSS_USE_SHARED_DB=1
+    export PKCS11_MODULE=$(find /usr/lib64 /usr/lib 2>/dev/null -name "opensc-pkcs11.so" | head -1)
+    if [[ -z "$PKCS11_MODULE" ]]; then
+        echo "OpenSC PKCS#11 module not found"
+        exit 1
+    fi
+    echo "Starting Firefox with CAC support..."
+    echo "PKCS#11 module: $PKCS11_MODULE"
+    firefox &
+    echo "Firefox started with CAC support"
+
+# Open Chrome/Chromium with CAC/pkcs11 environment
+[group('CAC')]
+chrome-cac:
+    #!/usr/bin/env bash
+    set -eoux pipefail
+    export NSS_USE_SHARED_DB=1
+    export PKCS11_MODULE=$(find /usr/lib64 /usr/lib 2>/dev/null -name "opensc-pkcs11.so" | head -1)
+    if [[ -z "$PKCS11_MODULE" ]]; then
+        echo "OpenSC PKCS#11 module not found"
+        exit 1
+    fi
+    echo "Starting Chrome with CAC support..."
+    echo "PKCS#11 module: $PKCS11_MODULE"
+    chrome &
+    echo "Chrome started with CAC support"
+
+# Open Brave with CAC/pkcs11 environment
+[group('CAC')]
+brave-cac:
+    #!/usr/bin/env bash
+    set -eoux pipefail
+    export NSS_USE_SHARED_DB=1
+    export PKCS11_MODULE=$(find /usr/lib64 /usr/lib 2>/dev/null -name "opensc-pkcs11.so" | head -1)
+    if [[ -z "$PKCS11_MODULE" ]]; then
+        echo "OpenSC PKCS#11 module not found"
+        exit 1
+    fi
+    echo "Starting Brave with CAC support..."
+    brave &
+    echo "Brave started with CAC support"
+
+# List certificates on CAC card
+[group('CAC')]
+cac-certs:
+    #!/usr/bin/env bash
+    set -eoux pipefail
+    if ! command -v pkcs15-tool &>/dev/null; then
+        echo "pkcs15-tool not available (install opensc)"
+        exit 1
+    fi
+    echo "=== CAC Certificates ==="
+    pkcs15-tool --list-certificates --verbose 2>&1
+
+# Read CAC card ID (DOD certificate CHUID data)
+[group('CAC')]
+cac-id:
+    #!/usr/bin/env bash
+    set -eoux pipefail
+    if ! command -v pkcs15-tool &>/dev/null; then
+        echo "pkcs15-tool not available"
+        exit 1
+    fi
+    echo "=== CAC CHUID ==="
+    pkcs15-tool --read-object 0x0050 2>&1 || echo "CHUID not readable or not present"
+
+# Test CAC authentication (simulated login check)
+[group('CAC')]
+cac-test-auth:
+    #!/usr/bin/env bash
+    set -eoux pipefail
+    if ! command -v pkcs15-tool &>/dev/null; then
+        echo "pkcs15-tool not available"
+        exit 1
+    fi
+    echo "=== Testing CAC card authentication ==="
+    echo "Checking card presence..."
+    if pkcs15-tool --list-certificates 2>&1 | grep -q "X.509 Certificate"; then
+        echo "Card is present and readable"
+        echo "Certificates found:"
+        pkcs15-tool --list-certificates 2>&1
+    else
+        echo "No certificates found — is CAC card inserted?"
+        exit 1
+    fi
