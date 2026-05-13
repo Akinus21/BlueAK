@@ -139,6 +139,28 @@ if [[ -d /etc/pki/nssdb ]] && [[ -n "$OPENSCLIB" ]]; then
     fi
 fi
 
+# ── Import DoD root certificates ─────────────────────────────────────────────
+CAC_CERTS_DIR="$HOME/.local/share/blueak/cac/certs"
+if [[ -d "$CAC_CERTS_DIR" ]] && [[ -n "$(ls -A "$CAC_CERTS_DIR" 2>/dev/null)" ]]; then
+    log "importing DoD/Federal CA certificates..."
+    for cert_file in "$CAC_CERTS_DIR"/*.p7b "$CAC_CERTS_DIR"/*.pem "$CAC_CERTS_DIR"/*.crt; do
+        [[ -f "$cert_file" ]] || continue
+        cert_name=$(basename "$cert_file")
+        for profile in "$HOME"/.mozilla/firefox/*.default*; do
+            [[ -d "$profile" ]] || continue
+            if certutil -d sql:"$profile" -A -n "$cert_name" \
+                -t "C,C,C" -i "$cert_file" 2>/dev/null; then
+                ok "DoD cert imported: $cert_name → $(basename "$profile")"
+            else
+                warn "cert import failed: $cert_name → $(basename "$profile")"
+            fi
+        done
+    done
+    ok "DoD certificate import done"
+else
+    log "no bundled DoD certs found — skipping (manually import via about:preferences if needed)"
+fi
+
 # ── Verify card is readable ──────────────────────────────────────────────────
 if command -v pkcs15-tool &>/dev/null; then
     sleep 1

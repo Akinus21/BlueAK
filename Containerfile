@@ -283,6 +283,10 @@ COPY config/systemd/ollama.service /etc/skel/.config/systemd/user/ollama.service
 COPY config/cac/cac-setup /etc/skel/.local/bin/cac-setup
 RUN chmod +x /etc/skel/.local/bin/cac-setup
 
+# Bundled DoD root certificates for CAC (imported by cac-setup)
+RUN mkdir -p /etc/skel/.local/share/blueak/cac
+COPY config/cac/certs/ /etc/skel/.local/share/blueak/cac/certs/
+
 # Legacy profile.d script removed — replaced by systemd user service
 
 ARG GAMING=false
