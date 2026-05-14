@@ -374,11 +374,10 @@ IRONEOF
         warn "cac-setup not found in skel — skipping"
     fi
 
-    # ── 7. Ollama ────────────────────────────────────────────────────────────
+# ── 7. Ollama ────────────────────────────────────────────────────────────
     log "--- Ollama ---"
     if ! command -v /usr/local/bin/ollama &>/dev/null; then
         log "Ollama: installing binary..."
-        local OLLAMA_VER
         OLLAMA_VER=$(curl -fsSL https://api.github.com/repos/ollama/ollama/releases/latest 2>/dev/null \
             | grep '"tag_name"' | cut -d'"' -f4 || echo "latest")
         if curl -fsSL "https://github.com/ollama/ollama/releases/download/${OLLAMA_VER}/ollama-linux-amd64" \
@@ -389,6 +388,31 @@ IRONEOF
         else
             warn "Ollama: download failed"
         fi
+    else
+        ok "Ollama: binary present"
+    fi
+    sync_skel ".config/systemd/user/ollama.service"
+    if ! systemctl --user enable --now ollama 2>/dev/null; then
+        warn "Ollama: failed to start via systemd"
+    else
+        ok "Ollama: enabled"
+    fi
+    # Start ollama serve in background directly (faster than waiting for systemd)
+    if command -v /usr/local/bin/ollama &>/dev/null; then
+        if ! pgrep -x "ollama" >/dev/null 2>&1; then
+            mkdir -p "$HOME/.cache/ollama"
+            nohup /usr/local/bin/ollama serve > "$BLUEAK_LOG_DIR/ollama.log" 2>&1 &
+            disown >/dev/null 2>&1 || true
+            sleep 1
+            if pgrep -x "ollama" >/dev/null 2>&1; then
+                ok "Ollama: serve started in background"
+            else
+                warn "Ollama: background start failed — check ~/.local/share/blueak/ollama.log"
+            fi
+        else
+            ok "Ollama: serve already running"
+        fi
+    fi
     else
         ok "Ollama: binary present"
     fi
