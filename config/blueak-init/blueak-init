@@ -473,6 +473,120 @@ IRONEOF
         warn "Noctalia: Purple Haze source not in skel"
     fi
 
+    # ── Render regreet CSS from Noctalia template ───────────────────────────
+    log "--- Noctalia regreet CSS ---"
+    local REGREET_SRC="$HOME/.config/noctalia/templates/regreet.css.tpl"
+    local REGREET_OUT="$HOME/.cache/noctalia/regreet.css"
+    if [[ -f "$REGREET_SRC" ]] && [[ -f "$PURPLE_HAZE_DEST" ]]; then
+        mkdir -p "$(dirname "$REGREET_OUT")"
+        python3 -c "
+import json, re, sys
+
+# Load Purple Haze dark scheme (matches regreet dark mode)
+with open('$PURPLE_HAZE_DEST', 'r') as f:
+    scheme = json.load(f)['dark']
+
+# Map Noctalia m* keys to template variable names
+color_map = {
+    'mPrimary':         'colors.primary.default.hex',
+    'mOnPrimary':       'colors.on_primary.default.hex',
+    'mSecondary':       'colors.secondary.default.hex',
+    'mOnSecondary':     'colors.on_secondary.default.hex',
+    'mTertiary':        'colors.tertiary.default.hex',
+    'mSurface':         'colors.surface.default.hex',
+    'mSurfaceVariant':  'colors.surface_variant.default.hex',
+    'mOnSurface':       'colors.on_surface.default.hex',
+    'mOnSurfaceVariant':'colors.on_surface_variant.default.hex',
+    'mBackground':      'colors.background.default.hex',
+    'mOnBackground':    'colors.on_background.default.hex',
+    'mError':           'colors.error.default.hex',
+    'mOutline':         'colors.outline.default.hex',
+    'mShadow':          'colors.shadow.default.hex',
+}
+
+# Build variable lookup from scheme
+lookup = {}
+for key, var in color_map.items():
+    if key in scheme:
+        lookup[var] = scheme[key]
+    else:
+        lookup[var] = '#000000'
+
+# Also handle terminal colors
+for side in ('normal', 'bright'):
+    for color in ('black','red','green','yellow','blue','magenta','cyan','white'):
+        var = f'colors.terminal.{side}.{color}.hex'
+        lookup[var] = scheme.get('terminal', {}).get(side, {}).get(color, '#000000')
+# cursor
+lookup['colors.terminal.cursor.hex'] = scheme.get('terminal', {}).get('cursor', '#A8E000')
+lookup['colors.terminal.cursorText.hex'] = scheme.get('terminal', {}).get('cursorText', '#0C0E00')
+lookup['colors.terminal.selectionFg.hex'] = scheme.get('terminal', {}).get('selectionFg', '#F0ECFF')
+lookup['colors.terminal.selectionBg.hex'] = scheme.get('terminal', {}).get('selectionBg', '#4E2478')
+
+with open('$REGREET_SRC', 'r') as f:
+    template = f.read()
+
+# Replace {{variable}} placeholders
+def replacer(m):
+    var = m.group(1).strip()
+    return lookup.get(var, m.group(0))
+
+result = re.sub(r'\{\{([^}]+)\}\}', replacer, template)
+
+# Handle set_alpha filter: value | set_alpha 0.72 → rgba from hex
+def alpha_fix(m):
+    hex_color = m.group(1)
+    alpha = m.group(2)
+    # Convert #RRGGBB to rgba(r,g,b,a)
+    h = hex_color.lstrip('#')
+    r, g, b = int(h[0:2],16), int(h[2:4],16), int(h[4:6],16)
+    return f'rgba({r},{g},{b},{alpha})'
+
+result = re.sub(r'rgba\(([0-9a-fA-F]{6}),(\d+\.?\d*)\)', alpha_fix, result)
+
+# Handle lighten/darken: color | lighten 0.08 → adjust brightness
+import colorsys
+def lighten_fix(m):
+    hex_color = m.group(1)
+    amount = float(m.group(2))
+    h = hex_color.lstrip('#')
+    r, g, b = int(h[0:2],16)/255, int(h[2:4],16)/255, int(h[4:6],16)/255
+    # Simple lighten: add brightness
+    hls = colorsys.rgb_to_hls(r, g, b)
+    new_l = min(1.0, hls[1] + amount * (1 - hls[1]))
+    rgb = colorsys.hls_to_rgb(hls[0], new_l, hls[2])
+    return f'#{int(rgb[0]*255):02x}{int(rgb[1]*255):02x}{int(rgb[2]*255):02x}'
+
+def darken_fix(m):
+    hex_color = m.group(1)
+    amount = float(m.group(2))
+    h = hex_color.lstrip('#')
+    r, g, b = int(h[0:2],16)/255, int(h[2:4],16)/255, int(h[4:6],16)/255
+    hls = colorsys.rgb_to_hls(r, g, b)
+    new_l = max(0, hls[1] - amount * hls[1])
+    rgb = colorsys.hls_to_rgb(hls[0], new_l, hls[2])
+    return f'#{int(rgb[0]*255):02x}{int(rgb[1]*255):02x}{int(rgb[2]*255):02x}'
+
+result = re.sub(r'lighten\(#([0-9a-fA-F]{6}),(\d+\.?\d*)\)', lighten_fix, result)
+result = re.sub(r'darken\(#([0-9a-fA-F]{6}),(\d+\.?\d*)\)', darken_fix, result)
+
+with open('$REGREET_OUT', 'w') as f:
+    f.write(result)
+print('rendered')
+" 2>/dev/null \
+        && ok "Noctalia: regreet.css rendered" \
+        || warn "Noctalia: regreet.css render failed"
+        # Also copy to greetd so it's themed immediately (before the watcher kicks in)
+        if [[ -f "$REGREET_OUT" ]]; then
+            cp "$REGREET_OUT" /etc/greetd/regreet.css && chmod 644 /etc/greetd/regreet.css \
+                && ok "Noctalia: /etc/greetd/regreet.css updated" \
+                || warn "Noctalia: greetd CSS copy failed"
+        fi
+    else
+        [[ -f "$REGREET_SRC" ]] || warn "Noctalia: regreet.css.tpl not found"
+        [[ -f "$PURPLE_HAZE_DEST" ]] || warn "Noctalia: colorscheme not found"
+    fi
+
     # ── Noctalia plugin repositories ────────────────────────────────────────
     log "--- Noctalia plugin repos ---"
     local SETTINGS_FILE="$HOME/.config/noctalia/settings.json"
