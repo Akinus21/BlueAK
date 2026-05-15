@@ -414,39 +414,6 @@ IRONEOF
         fi
     fi
 
-    # ── 7b. WinBoat ─────────────────────────────────────────────────────────
-    log "--- WinBoat ---"
-    if command -v /usr/local/bin/winboat &>/dev/null; then
-        WINBOAT_INSTALLED_VER=$(/usr/local/bin/winboat --version 2>/dev/null | head -1 || echo "0")
-        ok "WinBoat: present ($WINBOAT_INSTALLED_VER)"
-    else
-        WINBOAT_INSTALLED_VER="0"
-    fi
-
-    # Check latest release from GitHub
-    WINBOAT_LATEST=$(curl -fsSL https://api.github.com/repos/TibixDev/winboat/releases/latest 2>/dev/null \
-        | grep '"tag_name"' | cut -d'"' -f4 || echo "")
-    if [[ -z "$WINBOAT_LATEST" ]]; then
-        warn "WinBoat: could not fetch latest release"
-    else
-        WINBOAT_LATEST_NUM="${WINBOAT_LATEST#v}"
-        if [[ "$WINBOAT_INSTALLED_VER" != "$WINBOAT_LATEST_NUM" ]]; then
-            log "WinBoat: installing v${WINBOAT_LATEST_NUM}..."
-            WINBOAT_RPM_URL="https://github.com/TibixDev/winboat/releases/download/${WINBOAT_LATEST}/winboat-${WINBOAT_LATEST_NUM}-x86_64.rpm"
-            if curl -fsSL "$WINBOAT_RPM_URL" -o /tmp/winboat.rpm; then
-                sudo dnf install -y /tmp/winboat.rpm 2>/dev/null \
-                    && ok "WinBoat: v${WINBOAT_LATEST_NUM} installed" \
-                    || { sudo rpm -i /tmp/winboat.rpm 2>/dev/null \
-                        && ok "WinBoat: v${WINBOAT_LATEST_NUM} installed via rpm"; }
-                rm -f /tmp/winboat.rpm
-            else
-                warn "WinBoat: download failed for v${WINBOAT_LATEST_NUM}"
-            fi
-        else
-            ok "WinBoat: up to date (v${WINBOAT_INSTALLED_VER})"
-        fi
-    fi
-
     # ── 8. Zsh config (Powerlevel10k + plugins) ────────────────────────────
     log "--- Zsh config ---"
     sync_skel ".zshrc"

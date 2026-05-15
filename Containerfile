@@ -319,12 +319,19 @@ RUN dnf install -y --skip-broken \
     podman \
     podman-docker \
     freerdp \
-    libverto 2>/dev/null || true && \
-    curl -fsSL "https://github.com/TibixDev/winboat/releases/download/v0.9.0/winboat-0.9.0-x86_64.rpm" \
+    libverto 2>/dev/null || true
+
+# Fetch latest WinBoat release at build time
+RUN curl -fsSL "https://api.github.com/repos/TibixDev/winboat/releases/latest" \
+        -o /tmp/winboat-release.json && \
+    WINBOAT_TAG="$(grep '"tag_name"' /tmp/winboat-release.json | cut -d'"' -f4)" && \
+    WINBOAT_VER="${WINBOAT_TAG#v}" && \
+    curl -fsSL "https://github.com/TibixDev/winboat/releases/download/${WINBOAT_TAG}/winboat-${WINBOAT_VER}-x86_64.rpm" \
         -o /tmp/winboat.rpm && \
     dnf install -y /tmp/winboat.rpm 2>/dev/null || \
     rpm -i /tmp/winboat.rpm 2>/dev/null || true && \
-    rm -f /tmp/winboat.rpm
+    rm -f /tmp/winboat.rpm /tmp/winboat-release.json && \
+    ok "WinBoat ${WINBOAT_VER} installed at build time"
 
 # Bundled DoD root certificates for CAC (imported by cac-setup)
 RUN mkdir -p /etc/skel/.local/share/blueak/cac
