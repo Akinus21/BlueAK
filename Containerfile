@@ -331,7 +331,7 @@ RUN curl -fsSL "https://api.github.com/repos/TibixDev/winboat/releases/latest" \
     dnf install -y /tmp/winboat.rpm 2>/dev/null || \
     rpm -i /tmp/winboat.rpm 2>/dev/null || true && \
     rm -f /tmp/winboat.rpm /tmp/winboat-release.json && \
-    ok "WinBoat ${WINBOAT_VER} installed at build time"
+    echo "WinBoat ${WINBOAT_VER} installed at build time"
 
 # Bundled DoD root certificates for CAC (imported by cac-setup)
 RUN mkdir -p /etc/skel/.local/share/blueak/cac
