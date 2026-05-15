@@ -142,7 +142,7 @@ main() {
     # Remove strict error-exit for the background run so one failure doesn't kill everything
     set +e
 
-    exec >> "$BLUEAK_LOG" 2>>&1
+    exec >> "$BLUEAK_LOG" 2>&1
     echo ""
     echo "════════════════════════════════════════"
     echo "[blueak-init] $(date '+%Y-%m-%d %H:%M:%S')"
@@ -412,15 +412,6 @@ IRONEOF
         else
             ok "Ollama: serve already running"
         fi
-    fi
-    else
-        ok "Ollama: binary present"
-    fi
-    sync_skel ".config/systemd/user/ollama.service"
-    if ! systemctl --user enable --now ollama 2>/dev/null; then
-        warn "Ollama: failed to start"
-    else
-        ok "Ollama: enabled"
     fi
 
     # ── 8. Zsh config (Powerlevel10k + plugins) ────────────────────────────
