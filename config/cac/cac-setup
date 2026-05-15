@@ -141,11 +141,24 @@ fi
 
 # ── Import DoD root certificates ─────────────────────────────────────────────
 CAC_CERTS_DIR="$HOME/.local/share/blueak/cac/certs"
+CAC_SYSTEM_DB="/etc/pki/nssdb"
 if [[ -d "$CAC_CERTS_DIR" ]] && [[ -n "$(ls -A "$CAC_CERTS_DIR" 2>/dev/null)" ]]; then
     log "importing DoD/Federal CA certificates..."
     for cert_file in "$CAC_CERTS_DIR"/*.p7b "$CAC_CERTS_DIR"/*.pem "$CAC_CERTS_DIR"/*.crt; do
         [[ -f "$cert_file" ]] || continue
         cert_name=$(basename "$cert_file")
+
+        # Import into system NSS db (Chrome/Chromium/Brave)
+        if [[ -d "$CAC_SYSTEM_DB" ]] && [[ -n "$OPENSCLIB" ]]; then
+            if certutil -d sql:"$CAC_SYSTEM_DB" -A -n "$cert_name" \
+                -t "C,C,C" -i "$cert_file" 2>/dev/null; then
+                ok "DoD cert imported: $cert_name → system NSS"
+            else
+                warn "system NSS import failed: $cert_name"
+            fi
+        fi
+
+        # Import into each Firefox profile
         for profile in "$HOME"/.mozilla/firefox/*.default*; do
             [[ -d "$profile" ]] || continue
             if certutil -d sql:"$profile" -A -n "$cert_name" \

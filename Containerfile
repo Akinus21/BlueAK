@@ -78,6 +78,25 @@ RUN mkdir -p /etc/udev/rules.d && \
 RUN systemctl enable pcscd.service && \
     systemctl enable pcscd.socket 2>/dev/null || true
 
+# ── System NSS db for Chrome/Chromium/Brave/Electron ───────────────────
+# All browsers that use NSS will look here for the OpenSC module
+RUN mkdir -p /etc/pki/nssdb && \
+    if [ ! -f /etc/pki/nssdb/cert9.db ]; then \
+        certutil -d sql:/etc/pki/nssdb -N --empty-password; \
+    fi && \
+    chmod 644 /etc/pki/nssdb/* && \
+    if ! modutil -dbdir sql:/etc/pki/nssdb -list 2>/dev/null | grep -q "OpenSC"; then \
+        modutil -dbdir sql:/etc/pki/nssdb -add "OpenSC" \
+            -libfile /usr/lib64/opensc-pkcs11.so \
+            -mechanisms FRIENDLY 2>/dev/null || true; \
+    fi && \
+    chown -R root:root /etc/pki/nssdb
+
+# ── CAC environment variables for all browsers ──────────────────────────
+RUN printf 'export NSS_USE_SHARED_DB=1\nexport PKCS11_MODULE=/usr/lib64/opensc-pkcs11.so\n' \
+    > /etc/profile.d/blueak-cac.sh && \
+    chmod +x /etc/profile.d/blueak-cac.sh
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 4. Install DoD PKI CA certificates
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -95,6 +114,13 @@ RUN DOD_CERT_URL="https://dl.dod.cyber.mil/wp-content/uploads/pki-pke/zip/unclas
         rm -f "$dest"; \
     done && \
     update-ca-trust extract && \
+    # Also import DoD certs into system NSS db so Chrome/Chromium/Brave trust them
+    for pem in /etc/pki/ca-trust/source/anchors/dod-*.pem; do \
+        [[ -f "$pem" ]] || continue; \
+        cert_name="$(basename "$pem")"; \
+        certutil -d sql:/etc/pki/nssdb -A -n "$cert_name" \
+            -t "C,C,C" -i "$pem" 2>/dev/null || true; \
+    done && \
     rm -rf /tmp/dod_certs
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
