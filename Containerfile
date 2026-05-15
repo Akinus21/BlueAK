@@ -313,6 +313,19 @@ RUN chmod +x /etc/skel/.local/bin/cac-setup
 COPY config/systemd/blueak-init-boot.service /etc/systemd/system/blueak-init-boot.service
 RUN systemctl enable blueak-init-boot 2>/dev/null || true
 
+# ── WinBoat (Windows-on-Linux via Docker/Podman + RDP) ─────────────────────
+RUN dnf install -y --skip-broken \
+    docker \
+    podman \
+    podman-docker \
+    freerdp \
+    libverto 2>/dev/null || true && \
+    curl -fsSL "https://github.com/TibixDev/winboat/releases/download/v0.9.0/winboat-0.9.0-x86_64.rpm" \
+        -o /tmp/winboat.rpm && \
+    dnf install -y /tmp/winboat.rpm 2>/dev/null || \
+    rpm -i /tmp/winboat.rpm 2>/dev/null || true && \
+    rm -f /tmp/winboat.rpm
+
 # Bundled DoD root certificates for CAC (imported by cac-setup)
 RUN mkdir -p /etc/skel/.local/share/blueak/cac
 COPY config/cac/certs/ /etc/skel/.local/share/blueak/cac/certs/
