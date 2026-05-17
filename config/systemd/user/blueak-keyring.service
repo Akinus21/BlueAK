@@ -1,0 +1,13 @@
+[Unit]
+Description=GNOME Keyring Secret Service
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/gnome-keyring-daemon --start --components=secrets
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target

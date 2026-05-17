@@ -190,6 +190,14 @@ main() {
             || warn "blueak-init.service: enable failed"
     fi
 
+    # ── Always: sync + enable GNOME keyring ─────────────────────────────────
+    sync_skel ".config/systemd/user/blueak-keyring.service"
+    if ! systemctl --user is-enabled blueak-keyring 2>/dev/null; then
+        systemctl --user enable blueak-keyring 2>/dev/null \
+            && ok "blueak-keyring.service: enabled" \
+            || warn "blueak-keyring.service: enable failed"
+    fi
+
     # ── Always: show GUI status box on sync (if zenity available) ───────────
     local ZENITY_PID=""
     if require_zenity; then

@@ -21,7 +21,8 @@ RUN dnf install -y \
     earlyoom \
     libreoffice \
     okular \
-    android-tools
+    android-tools \
+    gnome-keyring
 
 # Noctalia Shell — via Terra repo (Fyra Labs)
 # https://docs.noctalia.dev/getting-started/installation
@@ -198,6 +199,7 @@ RUN systemctl enable bootc-nightly-reboot.timer
 # ── AkTags — via Homebrew (Akinus21/homebrew-tap) ───────────────────────────
 # Binary installed via brew install on login
 COPY config/systemd/aktags-daemon.service /etc/skel/.config/systemd/user/aktags-daemon.service
+COPY config/systemd/user/blueak-keyring.service /etc/skel/.config/systemd/user/blueak-keyring.service
 COPY config/aktags/aktags.desktop /etc/skel/.config/autostart/aktags.desktop
 
 # ── AKSpraypainter — theme-to-wallpaper color sync (planned) ────────────────
