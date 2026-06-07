@@ -329,6 +329,16 @@ IRONEOF
         ok "Bitwarden present"
     fi
 
+    # ── OnlyOffice Desktop Editors ─────────────────────────────────────────
+    if ! flatpak list --user --app 2>/dev/null | grep -q "org.onlyoffice.desktopeditors"; then
+        log "Installing OnlyOffice..."
+        flatpak install --user -y flathub org.onlyoffice.desktopeditors 2>&1 \
+            && ok "OnlyOffice installed" \
+            || warn "OnlyOffice install failed"
+    else
+        ok "OnlyOffice present"
+    fi
+
     # ── Bitwarden CLI (bw) ──────────────────────────────────────────────────
     log "--- Bitwarden CLI (bw) ---"
     if ! command -v bw &>/dev/null; then
