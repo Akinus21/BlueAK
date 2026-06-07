@@ -19,7 +19,7 @@ RUN dnf install -y \
     alacritty \
     swaybg \
     earlyoom \
-    libreoffice \
+    onlyoffice \
     okular \
     android-tools \
     gnome-keyring
