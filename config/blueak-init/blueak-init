@@ -11,6 +11,7 @@
 set -eo pipefail
 
 BLUEAK_STATE_DIR="$HOME/.local/share/blueak"
+BLUEAK_INSTALL_MARKER="$BLUEAK_STATE_DIR/.installed"
 BLUEAK_LOG_DIR="$BLUEAK_STATE_DIR"
 BLUEAK_LOG="$BLUEAK_LOG_DIR/init.log"
 SYNC_MARKER="$BLUEAK_STATE_DIR/.sync-done"
@@ -37,6 +38,27 @@ sudo mkdir -p /usr/local/bin 2>/dev/null || true
 log()  { echo "➜  $1"; }
 ok()   { echo "✔  $1"; }
 warn() { echo "!  $1"; }
+
+# ── First-run tracking helpers ────────────────────────────────────────────────
+is_installed() {
+    local item="$1"
+    [[ -f "$BLUEAK_INSTALL_MARKER" ]] && grep -qxF "$item" "$BLUEAK_INSTALL_MARKER" 2>/dev/null
+}
+
+mark_installed() {
+    local item="$1"
+    mkdir -p "$BLUEAK_STATE_DIR"
+    if is_installed "$item"; then
+        return 0
+    fi
+    echo "$item" >> "$BLUEAK_INSTALL_MARKER"
+}
+
+# ── Force flag: re-run full install ───────────────────────────────────────────
+FORCE_INSTALL=false
+if [[ "${1:-}" == "--force" ]]; then
+    FORCE_INSTALL=true
+fi
 
 get_version() {
     grep "^${1}=" "$VERSION_FILE" 2>/dev/null | cut -d= -f2 || echo ""
@@ -220,7 +242,12 @@ main() {
     log "--- Homebrew ---"
     if ! require_brew; then
         warn "Homebrew not found — skipping brew packages"
+    elif is_installed "homebrew-packages" && [[ "$FORCE_INSTALL" != "true" ]]; then
+        log "--- Homebrew (updating) ---"
+        brew update 2>/dev/null && brew upgrade 2>/dev/null || true
+        ok "Homebrew: up to date"
     else
+        log "--- Homebrew (first run - installing all packages) ---"
         brew tap Akinus21/homebrew-tap 2>/dev/null || warn "brew: tap Akinus21/homebrew-tap failed"
         for pkg in lazygit git-delta gh gitleaks; do brew_ensure "$pkg"; done
         for pkg in atuin tmux tldr; do brew_ensure "$pkg"; done
@@ -284,6 +311,7 @@ IRONEOF
         fi
         brew_ensure "blueak-session-manager"
         brew_ensure "akspraypaint"
+        mark_installed "homebrew-packages"
     fi
 
     # ── Bluefin CLI tools ───────────────────────────────────────────────────
@@ -320,23 +348,51 @@ IRONEOF
         https://dl.flathub.org/repo/flathub.flatpakrepo 2>/dev/null \
         && ok "flathub remote present" \
         || warn "flathub remote-add failed"
-    if ! flatpak list --user --app 2>/dev/null | grep -q "com.bitwarden.desktop"; then
-        log "Installing Bitwarden..."
-        flatpak install --user -y flathub com.bitwarden.desktop 2>&1 \
-            && ok "Bitwarden installed" \
-            || warn "Bitwarden install failed"
+    if is_installed "flatpak-packages" && [[ "$FORCE_INSTALL" != "true" ]]; then
+        log "--- Flatpak (updating) ---"
+        flatpak update --user -y 2>/dev/null || true
+        ok "Flatpak: up to date"
     else
-        ok "Bitwarden present"
-    fi
+        log "--- Flatpak (first run) ---"
+        if ! flatpak list --user --app 2>/dev/null | grep -q "com.bitwarden.desktop"; then
+            log "Installing Bitwarden..."
+            flatpak install --user -y flathub com.bitwarden.desktop 2>&1 \
+                && ok "Bitwarden installed" \
+                || warn "Bitwarden install failed"
+        else
+            ok "Bitwarden present"
+        fi
 
-    # ── OnlyOffice Desktop Editors ─────────────────────────────────────────
-    if ! flatpak list --user --app 2>/dev/null | grep -q "org.onlyoffice.desktopeditors"; then
-        log "Installing OnlyOffice..."
-        flatpak install --user -y flathub org.onlyoffice.desktopeditors 2>&1 \
-            && ok "OnlyOffice installed" \
-            || warn "OnlyOffice install failed"
-    else
-        ok "OnlyOffice present"
+        # ── OnlyOffice Desktop Editors ─────────────────────────────────────────
+        if ! flatpak list --user --app 2>/dev/null | grep -q "org.onlyoffice.desktopeditors"; then
+            log "Installing OnlyOffice..."
+            flatpak install --user -y flathub org.onlyoffice.desktopeditors 2>&1 \
+                && ok "OnlyOffice installed" \
+                || warn "OnlyOffice install failed"
+        else
+            ok "OnlyOffice present"
+        fi
+
+        # ── Gaming flatpaks ────────────────────────────────────────────────────
+        if [[ -f /etc/blueak-gaming ]]; then
+            GAMING_FLATPAKS=(
+                "com.valvesoftware.Steam"
+                "com.github.Matoking.protontricks"
+                "net.davidotek.pupgui2"
+                "com.heroicgameslauncher.hgl"
+            )
+            for fp in "${GAMING_FLATPAKS[@]}"; do
+                if ! flatpak list --user --app 2>/dev/null | grep -q "$fp"; then
+                    log "Gaming: installing $fp..."
+                    flatpak install --user -y flathub "$fp" 2>&1 \
+                        && ok "Gaming: $fp installed" \
+                        || warn "Gaming: $fp install failed"
+                else
+                    ok "Gaming: $fp (present)"
+                fi
+            done
+        fi
+        mark_installed "flatpak-packages"
     fi
 
     # ── Bitwarden CLI (bw) ──────────────────────────────────────────────────
@@ -394,7 +450,24 @@ IRONEOF
 
 # ── 7. Ollama ────────────────────────────────────────────────────────────
     log "--- Ollama ---"
-    if ! command -v /usr/local/bin/ollama &>/dev/null; then
+    if is_installed "ollama" && [[ "$FORCE_INSTALL" != "true" ]]; then
+        log "--- Ollama (updating) ---"
+        # Just ensure it's running, no re-install
+        systemctl --user enable --now ollama 2>/dev/null || true
+        if pgrep -x "ollama" >/dev/null 2>&1; then
+            ok "Ollama: serve already running"
+        else
+            mkdir -p "$HOME/.cache/ollama"
+            nohup /usr/local/bin/ollama serve > "$BLUEAK_LOG_DIR/ollama.log" 2>&1 &
+            disown >/dev/null 2>&1 || true
+            sleep 1
+            if pgrep -x "ollama" >/dev/null 2>&1; then
+                ok "Ollama: serve started"
+            else
+                warn "Ollama: background start failed"
+            fi
+        fi
+    elif ! command -v /usr/local/bin/ollama &>/dev/null; then
         log "Ollama: installing binary..."
         OLLAMA_VER=$(curl -fsSL https://api.github.com/repos/ollama/ollama/releases/latest 2>/dev/null \
             | grep '"tag_name"' | cut -d'"' -f4 || echo "latest")
@@ -406,8 +479,10 @@ IRONEOF
         else
             warn "Ollama: download failed"
         fi
+        mark_installed "ollama"
     else
         ok "Ollama: binary present"
+        mark_installed "ollama"
     fi
     sync_skel ".config/systemd/user/ollama.service"
     if ! systemctl --user enable --now ollama 2>/dev/null; then
@@ -455,42 +530,56 @@ IRONEOF
     local OMZ_PLUGINS="$OMZ/custom/plugins"
     local OMZ_THEMES="$OMZ/custom/themes"
 
-    # Check base Oh-My-Zsh first
-    if [[ ! -d "$OMZ/.git" ]]; then
-        log "OMZ: base directory missing — cloning..."
-        git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git "$OMZ" 2>/dev/null \
-            && ok "OMZ: oh-my-zsh installed" \
-            || warn "OMZ: oh-my-zsh clone failed"
+    if is_installed "oh-my-zsh" && [[ "$FORCE_INSTALL" != "true" ]]; then
+        log "--- OMZ (updating plugins) ---"
+        # Just git pull in each plugin/theme directory
+        for dir in "$OMZ_PLUGINS"/* "$OMZ_THEMES"/*; do
+            [[ -d "$dir/.git" ]] && (cd "$dir" && git pull --ff-only 2>/dev/null) || true
+        done
+        ok "OMZ: up to date"
     else
-        ok "OMZ: base directory present"
-    fi
-
-    mkdir -p "$OMZ_PLUGINS" "$OMZ_THEMES"
-
-    for plugin in zsh-autosuggestions zsh-syntax-highlighting zsh-completions; do
-        if [[ ! -d "$OMZ_PLUGINS/$plugin" ]]; then
-            log "OMZ: cloning $plugin..."
-            git clone --depth=1 "https://github.com/zsh-users/$plugin.git" \
-                "$OMZ_PLUGINS/$plugin" 2>/dev/null \
-                && ok "OMZ: $plugin installed" \
-                || warn "OMZ: $plugin clone failed"
+        # Check base Oh-My-Zsh first
+        if [[ ! -d "$OMZ/.git" ]]; then
+            log "OMZ: base directory missing — cloning..."
+            git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git "$OMZ" 2>/dev/null \
+                && ok "OMZ: oh-my-zsh installed" \
+                || warn "OMZ: oh-my-zsh clone failed"
         else
-            ok "OMZ: $plugin (present)"
+            ok "OMZ: base directory present"
         fi
-    done
 
-    if [[ ! -d "$OMZ_THEMES/powerlevel10k" ]]; then
-        log "OMZ: cloning powerlevel10k..."
-        git clone --depth=1 "https://github.com/romkatv/powerlevel10k.git" \
-            "$OMZ_THEMES/powerlevel10k" 2>/dev/null \
-            && ok "OMZ: powerlevel10k installed" \
-            || warn "OMZ: powerlevel10k clone failed"
-    else
-        ok "OMZ: powerlevel10k (present)"
+        mkdir -p "$OMZ_PLUGINS" "$OMZ_THEMES"
+
+        for plugin in zsh-autosuggestions zsh-syntax-highlighting zsh-completions; do
+            if [[ ! -d "$OMZ_PLUGINS/$plugin" ]]; then
+                log "OMZ: cloning $plugin..."
+                git clone --depth=1 "https://github.com/zsh-users/$plugin.git" \
+                    "$OMZ_PLUGINS/$plugin" 2>/dev/null \
+                    && ok "OMZ: $plugin installed" \
+                    || warn "OMZ: $plugin clone failed"
+            else
+                ok "OMZ: $plugin (present)"
+            fi
+        done
+
+        if [[ ! -d "$OMZ_THEMES/powerlevel10k" ]]; then
+            log "OMZ: cloning powerlevel10k..."
+            git clone --depth=1 "https://github.com/romkatv/powerlevel10k.git" \
+                "$OMZ_THEMES/powerlevel10k" 2>/dev/null \
+                && ok "OMZ: powerlevel10k installed" \
+                || warn "OMZ: powerlevel10k clone failed"
+        else
+            ok "OMZ: powerlevel10k (present)"
+        fi
+        mark_installed "oh-my-zsh"
     fi
 
     # ── Noctalia color scheme ───────────────────────────────────────────────
     log "--- Noctalia color scheme ---"
+
+    # Sync entire noctalia config dir first so regreet.css.tpl template exists
+    sync_skel ".config/noctalia"
+
     local PURPLE_HAZE_SRC="/etc/skel/.config/noctalia/colorschemes/Purple Haze/Purple Haze.json"
     local PURPLE_HAZE_DEST="$HOME/.config/noctalia/colorschemes/Purple Haze/Purple Haze.json"
     mkdir -p "$(dirname "$PURPLE_HAZE_DEST")"
@@ -670,28 +759,57 @@ with open('$SETTINGS_FILE', 'w') as f:
     local DEFAULT_PLUGINS=("niri-keybinds" "linkding" "bitwarden" "akspraypaint-provider")
     mkdir -p "$PLUGINS_DIR"
 
-    for plugin in "${DEFAULT_PLUGINS[@]}"; do
-        local PLUGIN_PATH="$PLUGINS_DIR/$plugin"
-        local PLUGIN_TMP
-        if [[ -d "$PLUGIN_PATH" ]]; then
-            ok "Noctalia plugin: $plugin (present)"
-        else
-            log "Noctalia: installing plugin '$plugin'..."
-            PLUGIN_TMP=$(mktemp -d)
-            if git clone --filter=blob:none --no-checkout --depth=1 "$PLUGINS_REPO" "$PLUGIN_TMP" 2>/dev/null; then
-                cd "$PLUGIN_TMP" && \
-                    git sparse-checkout set --no-cone "$plugin" && \
-                    git checkout && \
-                    cp -r "$PLUGIN_TMP/$plugin" "$PLUGIN_PATH" && \
-                    ok "Noctalia plugin: $plugin installed" || \
-                    warn "Noctalia plugin: $plugin sparse checkout failed"
+    if is_installed "noctalia-plugins" && [[ "$FORCE_INSTALL" != "true" ]]; then
+        log "--- Noctalia plugins (updating) ---"
+        for plugin in "${DEFAULT_PLUGINS[@]}"; do
+            local PLUGIN_PATH="$PLUGINS_DIR/$plugin"
+            if [[ -d "$PLUGIN_PATH/.git" ]]; then
+                (cd "$PLUGIN_PATH" && git pull --ff-only 2>/dev/null) || true
+                ok "Noctalia plugin: $plugin (up to date)"
             else
-                warn "Noctalia plugin: $plugin clone failed"
+                log "Noctalia: reinstalling plugin '$plugin'..."
+                # Fallback to fresh clone if git dir missing
+                PLUGIN_TMP=$(mktemp -d)
+                if git clone --filter=blob:none --no-checkout --depth=1 "$PLUGINS_REPO" "$PLUGIN_TMP" 2>/dev/null; then
+                    cd "$PLUGIN_TMP" && \
+                        git sparse-checkout set --no-cone "$plugin" && \
+                        git checkout && \
+                        rm -rf "$PLUGIN_PATH" && \
+                        cp -r "$PLUGIN_TMP/$plugin" "$PLUGIN_PATH" && \
+                        ok "Noctalia plugin: $plugin reinstalled" || \
+                        warn "Noctalia plugin: $plugin failed"
+                else
+                    warn "Noctalia plugin: $plugin clone failed"
+                fi
+                cd /
+                rm -rf "$PLUGIN_TMP"
             fi
-            cd /
-            rm -rf "$PLUGIN_TMP"
-        fi
-    done
+        done
+    else
+        for plugin in "${DEFAULT_PLUGINS[@]}"; do
+            local PLUGIN_PATH="$PLUGINS_DIR/$plugin"
+            local PLUGIN_TMP
+            if [[ -d "$PLUGIN_PATH" ]]; then
+                ok "Noctalia plugin: $plugin (present)"
+            else
+                log "Noctalia: installing plugin '$plugin'..."
+                PLUGIN_TMP=$(mktemp -d)
+                if git clone --filter=blob:none --no-checkout --depth=1 "$PLUGINS_REPO" "$PLUGIN_TMP" 2>/dev/null; then
+                    cd "$PLUGIN_TMP" && \
+                        git sparse-checkout set --no-cone "$plugin" && \
+                        git checkout && \
+                        cp -r "$PLUGIN_TMP/$plugin" "$PLUGIN_PATH" && \
+                        ok "Noctalia plugin: $plugin installed" || \
+                        warn "Noctalia plugin: $plugin sparse checkout failed"
+                else
+                    warn "Noctalia plugin: $plugin clone failed"
+                fi
+                cd /
+                rm -rf "$PLUGIN_TMP"
+            fi
+        done
+        mark_installed "noctalia-plugins"
+    fi
 
 
 
