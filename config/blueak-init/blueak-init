@@ -580,32 +580,43 @@ IRONEOF
     # Sync entire noctalia config dir first so regreet.css.tpl template exists
     sync_skel ".config/noctalia"
 
-    local PURPLE_HAZE_SRC="/etc/skel/.config/noctalia/colorschemes/Purple Haze/Purple Haze.json"
-    local PURPLE_HAZE_DEST="$HOME/.config/noctalia/colorschemes/Purple Haze/Purple Haze.json"
-    mkdir -p "$(dirname "$PURPLE_HAZE_DEST")"
-    if [[ -f "$PURPLE_HAZE_SRC" ]]; then
-        if [[ ! -f "$PURPLE_HAZE_DEST" ]] || ! cmp -s "$PURPLE_HAZE_SRC" "$PURPLE_HAZE_DEST"; then
-            cp "$PURPLE_HAZE_SRC" "$PURPLE_HAZE_DEST" \
-                && ok "Noctalia: Purple Haze installed" \
-                || warn "Noctalia: Purple Haze install failed"
+    # Read active theme from settings.json, default to "Purple Haze" if missing
+    local ACTIVE_THEME="Purple Haze"
+    local SETTINGS_JSON="$HOME/.config/noctalia/settings.json"
+    if [[ -f "$SETTINGS_JSON" ]]; then
+        local EXTRACTED_THEME
+        EXTRACTED_THEME=$(python3 -c "import json; print(json.load(open('$SETTINGS_JSON')).get('activeColorScheme', 'Purple Haze'))" 2>/dev/null)
+        if [[ -n "$EXTRACTED_THEME" ]]; then
+            ACTIVE_THEME="$EXTRACTED_THEME"
+        fi
+    fi
+
+    local ACTIVE_THEME_SRC="/etc/skel/.config/noctalia/colorschemes/${ACTIVE_THEME}/${ACTIVE_THEME}.json"
+    local ACTIVE_THEME_DEST="$HOME/.config/noctalia/colorschemes/${ACTIVE_THEME}/${ACTIVE_THEME}.json"
+    mkdir -p "$(dirname "$ACTIVE_THEME_DEST")"
+    if [[ -f "$ACTIVE_THEME_SRC" ]]; then
+        if [[ ! -f "$ACTIVE_THEME_DEST" ]] || ! cmp -s "$ACTIVE_THEME_SRC" "$ACTIVE_THEME_DEST"; then
+            cp "$ACTIVE_THEME_SRC" "$ACTIVE_THEME_DEST" \
+                && ok "Noctalia: ${ACTIVE_THEME} installed" \
+                || warn "Noctalia: ${ACTIVE_THEME} install failed"
         else
-            ok "Noctalia: Purple Haze (current)"
+            ok "Noctalia: ${ACTIVE_THEME} (current)"
         fi
     else
-        warn "Noctalia: Purple Haze source not in skel"
+        warn "Noctalia: ${ACTIVE_THEME} source not in skel"
     fi
 
     # ── Render regreet CSS from Noctalia template ───────────────────────────
     log "--- Noctalia regreet CSS ---"
     local REGREET_SRC="$HOME/.config/noctalia/templates/regreet.css.tpl"
     local REGREET_OUT="$HOME/.cache/noctalia/regreet.css"
-    if [[ -f "$REGREET_SRC" ]] && [[ -f "$PURPLE_HAZE_DEST" ]]; then
+    if [[ -f "$REGREET_SRC" ]] && [[ -f "$ACTIVE_THEME_DEST" ]]; then
         mkdir -p "$(dirname "$REGREET_OUT")"
         python3 -c "
 import json, re, sys
 
-# Load Purple Haze dark scheme (matches regreet dark mode)
-with open('$PURPLE_HAZE_DEST', 'r') as f:
+# Load active theme dark scheme (matches regreet dark mode)
+with open('$ACTIVE_THEME_DEST', 'r') as f:
     scheme = json.load(f)['dark']
 
 # Map Noctalia m* keys to template variable names
@@ -706,7 +717,7 @@ print('rendered')
         fi
     else
         [[ -f "$REGREET_SRC" ]] || warn "Noctalia: regreet.css.tpl not found"
-        [[ -f "$PURPLE_HAZE_DEST" ]] || warn "Noctalia: colorscheme not found"
+        [[ -f "$ACTIVE_THEME_DEST" ]] || warn "Noctalia: colorscheme not found"
     fi
 
     # ── Noctalia plugin repositories ────────────────────────────────────────
