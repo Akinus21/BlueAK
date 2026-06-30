@@ -21,7 +21,7 @@ LOCK_FILE="$BLUEAK_STATE_DIR/.init-lock"
 
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$UID}"
 export DISPLAY="${DISPLAY:-:0}"
-export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}"
+export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
 
 # Ensure Homebrew is in PATH for this session
 if [[ -d "$HOME/.homebrew/bin" ]]; then
@@ -170,6 +170,9 @@ main() {
     echo "[blueak-init] $(date '+%Y-%m-%d %H:%M:%S')"
     echo "════════════════════════════════════════"
 
+    log "blueak-init: starting (pid $$)"
+    log "DISPLAY=$DISPLAY WAYLAND_DISPLAY=$WAYLAND_DISPLAY"
+
     local errors=0
 
     # ── Always: set up dirs and cleanup deprecated items ─────────────────────
@@ -242,37 +245,40 @@ main() {
     log "--- Homebrew ---"
     if ! require_brew; then
         warn "Homebrew not found — skipping brew packages"
-    elif is_installed "homebrew-packages" && [[ "$FORCE_INSTALL" != "true" ]]; then
+    else
+        # ALWAYS run brew update && brew upgrade to get latest packages
         log "--- Homebrew (updating) ---"
         brew update 2>/dev/null && brew upgrade 2>/dev/null || true
         ok "Homebrew: up to date"
-    else
-        log "--- Homebrew (first run - installing all packages) ---"
-        brew tap Akinus21/homebrew-tap 2>/dev/null || warn "brew: tap Akinus21/homebrew-tap failed"
-        for pkg in lazygit git-delta gh gitleaks; do brew_ensure "$pkg"; done
-        for pkg in atuin tmux tldr; do brew_ensure "$pkg"; done
-        for pkg in jq yq xh; do brew_ensure "$pkg"; done
-        for pkg in trivy grype; do brew_ensure "$pkg"; done
-        for pkg in yazi duf dust age; do brew_ensure "$pkg"; done
-        brew_ensure "aktags"
-        brew_ensure "bitwarden-cli"
-        brew_ensure "iron"
-        # ── Iron browser .desktop ─────────────────────────────────────────────
-        log "--- Iron browser desktop ---"
-        local IRON_BIN=""
-        for p in "$HOME/.homebrew/bin/iron" "$HOME/.linuxbrew/bin/iron" "/home/linuxbrew/.linuxbrew/bin/iron" "/usr/local/bin/iron"; do
-            [[ -x "$p" ]] && { IRON_BIN="$p"; break; }
-        done
-        # Fallback to PATH if direct paths not found
-        if [[ -z "$IRON_BIN" ]] && command -v iron >/dev/null 2>&1; then
-            IRON_BIN="$(command -v iron)"
-        fi
-        local IRON_DESKTOP="$HOME/.local/share/applications/iron.desktop"
-        if [[ -n "$IRON_BIN" ]]; then
-            if [[ ! -f "$IRON_DESKTOP" ]]; then
-                log "Iron: creating desktop entry..."
-                mkdir -p "$(dirname "$IRON_DESKTOP")"
-                cat > "$IRON_DESKTOP" << 'IRONEOF'
+
+        # ONLY install missing packages on first run (when not yet marked installed)
+        if ! is_installed "homebrew-packages"; then
+            log "--- Homebrew (first run - installing missing packages) ---"
+            brew tap Akinus21/homebrew-tap 2>/dev/null || warn "brew: tap Akinus21/homebrew-tap failed"
+            for pkg in lazygit git-delta gh gitleaks; do brew_ensure "$pkg"; done
+            for pkg in atuin tmux tldr; do brew_ensure "$pkg"; done
+            for pkg in jq yq xh; do brew_ensure "$pkg"; done
+            for pkg in trivy grype; do brew_ensure "$pkg"; done
+            for pkg in yazi duf dust age; do brew_ensure "$pkg"; done
+            brew_ensure "aktags"
+            brew_ensure "bitwarden-cli"
+            brew_ensure "iron"
+            # ── Iron browser .desktop ─────────────────────────────────────────────
+            log "--- Iron browser desktop ---"
+            local IRON_BIN=""
+            for p in "$HOME/.homebrew/bin/iron" "$HOME/.linuxbrew/bin/iron" "/home/linuxbrew/.linuxbrew/bin/iron" "/usr/local/bin/iron"; do
+                [[ -x "$p" ]] && { IRON_BIN="$p"; break; }
+            done
+            # Fallback to PATH if direct paths not found
+            if [[ -z "$IRON_BIN" ]] && command -v iron >/dev/null 2>&1; then
+                IRON_BIN="$(command -v iron)"
+            fi
+            local IRON_DESKTOP="$HOME/.local/share/applications/iron.desktop"
+            if [[ -n "$IRON_BIN" ]]; then
+                if [[ ! -f "$IRON_DESKTOP" ]]; then
+                    log "Iron: creating desktop entry..."
+                    mkdir -p "$(dirname "$IRON_DESKTOP")"
+                    cat > "$IRON_DESKTOP" << 'IRONEOF'
 [Desktop Entry]
 Name=Iron
 Comment=Chromium-based browser
@@ -283,35 +289,38 @@ Type=Application
 Categories=Network;WebBrowser;
 MimeType=text/html;application/xhtml+xml;x-scheme-handler(http);x-scheme-handler(https);
 IRONEOF
-                ok "Iron: desktop entry created"
-                command -v update-desktop-database >/dev/null 2>&1 && \
-                    update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+                    ok "Iron: desktop entry created"
+                    command -v update-desktop-database >/dev/null 2>&1 && \
+                        update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+                else
+                    ok "Iron: desktop entry present"
+                fi
             else
-                ok "Iron: desktop entry present"
+                warn "Iron: binary not found — check brew install"
             fi
+            brew_ensure "font-meslo-lg-nerd-font" --cask
+            brew_ensure "aktools"
+
+            # ── AKTools modules ───────────────────────────────────────────────────
+            log "--- AKTools modules ---"
+            if command -v aktools >/dev/null 2>&1; then
+                log "AKTools: upgrading..."
+                aktools upgrade 2>/dev/null && ok "AKTools: upgraded" || warn "AKTools: upgrade failed"
+
+                log "AKTools: installing blueak module..."
+                aktools install-mod blueak 2>/dev/null && ok "AKTools: blueak module installed" || warn "AKTools: blueak module failed"
+
+                log "AKTools: installing noctalia module..."
+                aktools install-mod noctalia 2>/dev/null && ok "AKTools: noctalia module installed" || warn "AKTools: noctalia module failed"
+            else
+                warn "AKTools: not found after brew — skipping module install"
+            fi
+            brew_ensure "blueak-session-manager"
+            brew_ensure "akspraypaint"
+            mark_installed "homebrew-packages"
         else
-            warn "Iron: binary not found — check brew install"
+            ok "Homebrew: packages already installed (use --force to reinstall)"
         fi
-        brew_ensure "font-meslo-lg-nerd-font" --cask
-        brew_ensure "aktools"
-
-        # ── AKTools modules ───────────────────────────────────────────────────
-        log "--- AKTools modules ---"
-        if command -v aktools >/dev/null 2>&1; then
-            log "AKTools: upgrading..."
-            aktools upgrade 2>/dev/null && ok "AKTools: upgraded" || warn "AKTools: upgrade failed"
-
-            log "AKTools: installing blueak module..."
-            aktools install-mod blueak 2>/dev/null && ok "AKTools: blueak module installed" || warn "AKTools: blueak module failed"
-
-            log "AKTools: installing noctalia module..."
-            aktools install-mod noctalia 2>/dev/null && ok "AKTools: noctalia module installed" || warn "AKTools: noctalia module failed"
-        else
-            warn "AKTools: not found after brew — skipping module install"
-        fi
-        brew_ensure "blueak-session-manager"
-        brew_ensure "akspraypaint"
-        mark_installed "homebrew-packages"
     fi
 
     # ── Bluefin CLI tools ───────────────────────────────────────────────────
@@ -348,12 +357,15 @@ IRONEOF
         https://dl.flathub.org/repo/flathub.flatpakrepo 2>/dev/null \
         && ok "flathub remote present" \
         || warn "flathub remote-add failed"
-    if is_installed "flatpak-packages" && [[ "$FORCE_INSTALL" != "true" ]]; then
-        log "--- Flatpak (updating) ---"
-        flatpak update --user -y 2>/dev/null || true
-        ok "Flatpak: up to date"
-    else
-        log "--- Flatpak (first run) ---"
+
+    # ALWAYS run flatpak update to keep packages current
+    log "--- Flatpak (updating) ---"
+    flatpak update --user -y 2>/dev/null || true
+    ok "Flatpak: up to date"
+
+    # ONLY install missing flatpaks on first run (when not yet marked installed)
+    if ! is_installed "flatpak-packages"; then
+        log "--- Flatpak (first run - installing missing packages) ---"
         if ! flatpak list --user --app 2>/dev/null | grep -q "com.bitwarden.desktop"; then
             log "Installing Bitwarden..."
             flatpak install --user -y flathub com.bitwarden.desktop 2>&1 \
@@ -393,6 +405,8 @@ IRONEOF
             done
         fi
         mark_installed "flatpak-packages"
+    else
+        ok "Flatpak: packages already installed (use --force to reinstall)"
     fi
 
     # ── Bitwarden CLI (bw) ──────────────────────────────────────────────────
@@ -849,6 +863,7 @@ with open('$SETTINGS_FILE', 'w') as f:
     fi
 
     # Mark sync complete
+    set_version "last_run" "$(date +%s)"  # Always updated, even on failure
     touch "$SYNC_MARKER"
     set_version "last_sync" "$(date +%s)"
 
@@ -867,9 +882,12 @@ with open('$SETTINGS_FILE', 'w') as f:
     else
         ok "blueak-init complete"
         if command -v notify-send &>/dev/null; then
-            notify-send -u normal -a BlueAK "BlueAK Ready" "Your system is up to date." 2>/dev/null || true
+            # Give notification daemon time to be ready, use icon flag
+            sleep 2
+            notify-send -u normal -a BlueAK -i blueak "BlueAK Ready" "System sync complete. Log: ~/.local/share/blueak/init.log" 2>/dev/null || true
         fi
     fi
+    log "blueak-init: finished (pid $$)"
 }
 
 # If run in the foreground (e.g., from /etc/zshenv or .zshrc), spawn a
