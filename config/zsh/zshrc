@@ -3,12 +3,18 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
+# Prevent sudo password spam from history expansion replaying sudo commands
+unsetopt hist_verify
+
 # PATH — single declaration, deduplicated
 export PATH="$HOME/.opencode/bin:$HOME/.local/bin:$HOME/bin:/usr/local/bin:$PATH"
 
 # Oh My Zsh
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="powerlevel10k/powerlevel10k"
+
+# Homebrew auto-update
+export HOMEBREW_AUTO_UPDATE=1
 
 plugins=(
   git
