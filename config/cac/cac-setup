@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# cac-setup — Zero-interaction CAC reader + certificate setup for BlueAK
+# cac-setup — Zero-interaction CAC reader + certificate setup for Billet
 #
-# Run on first login via blueak-init. No interaction required.
+# Run on first login via billet-init. No interaction required.
 # Handles: pcscd, OpenSC module registration, NSS dbs, GnuPG CCID disable.
 #
-# To force re-run: rm ~/.local/share/blueak/.cac-setup-done
+# To force re-run: rm ~/.local/share/billet/.cac-setup-done
 
 set -eo pipefail
 
@@ -140,7 +140,7 @@ if [[ -d /etc/pki/nssdb ]] && [[ -n "$OPENSCLIB" ]]; then
 fi
 
 # ── Import DoD root certificates ─────────────────────────────────────────────
-CAC_CERTS_DIR="$HOME/.local/share/blueak/cac/certs"
+CAC_CERTS_DIR="$HOME/.local/share/billet/cac/certs"
 CAC_SYSTEM_DB="/etc/pki/nssdb"
 if [[ -d "$CAC_CERTS_DIR" ]] && [[ -n "$(ls -A "$CAC_CERTS_DIR" 2>/dev/null)" ]]; then
     log "importing DoD/Federal CA certificates..."

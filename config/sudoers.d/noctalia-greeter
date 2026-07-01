@@ -1,4 +1,4 @@
 # Allow the greeter CSS sync service to install regreet.css to /etc/greetd
-# without a password prompt. This is used by the blueak-sync-greeter-css
+# without a password prompt. This is used by the billet-sync-greeter-css
 # systemd service which runs pkexec to copy Noctalia-rendered CSS.
 %wheel ALL=(ALL) NOPASSWD: /usr/bin/install -m 644 */.cache/noctalia/regreet.css /etc/greetd/regreet.css

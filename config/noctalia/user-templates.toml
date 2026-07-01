@@ -1,8 +1,8 @@
-# BlueAK ReGreet color sync
+# Billet ReGreet color sync
 # Renders the CSS template and copies it to greetd's config dir.
 # The post_hook makes the file world-readable so the greeter user can read it.
-# Uses pkexec via the blueak-sync-greeter-css systemd service for immutable-OS safety.
+# Uses pkexec via the billet-sync-greeter-css systemd service for immutable-OS safety.
 [templates.regreet]
 input_path  = "~/.config/noctalia/templates/regreet.css.tpl"
 output_path = "~/.cache/noctalia/regreet.css"
-post_hook   = "systemctl --user start blueak-sync-greeter-css.service"
+post_hook   = "systemctl --user start billet-sync-greeter-css.service"

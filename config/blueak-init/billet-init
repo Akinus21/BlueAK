@@ -1,23 +1,23 @@
-#!/usr/bin/env bash
-# blueak-init — BlueAK bootstrap, sync, and health-check
+#!/bin/bash
+# Billet init - first login bootstrap for Billet Linux
+# (formerly blueak-init)
 #
-# Runs on every login via systemd user service (blueak-init.service).
-# Performs: skel sync, binary install/restore, config copy, cleanup, service start.
-#
-# Usage: ~/.local/bin/blueak-init (called by systemd service)
-#
-# To force full re-sync: rm ~/.local/share/blueak/.sync-done
+# This script handles first-login setup for Billet Linux including:
+# - Homebrew package installation
+# - Flatpak setup and installation
+# - Desktop configuration
+# - CAC/smart card setup
 
 set -eo pipefail
 
-BLUEAK_STATE_DIR="$HOME/.local/share/blueak"
-BLUEAK_INSTALL_MARKER="$BLUEAK_STATE_DIR/.installed"
-BLUEAK_LOG_DIR="$BLUEAK_STATE_DIR"
-BLUEAK_LOG="$BLUEAK_LOG_DIR/init.log"
-SYNC_MARKER="$BLUEAK_STATE_DIR/.sync-done"
+BILLET_STATE_DIR="$HOME/.local/share/blueak"
+BILLET_INSTALL_MARKER="$BILLET_STATE_DIR/.installed"
+BILLET_LOG_DIR="$BILLET_STATE_DIR"
+BILLET_LOG="$BILLET_LOG_DIR/init.log"
+SYNC_MARKER="$BILLET_STATE_DIR/.sync-done"
 SYNC_INTERVAL=3600  # Skip if synced within 1 hour
-VERSION_FILE="$BLUEAK_STATE_DIR/.versions"
-LOCK_FILE="$BLUEAK_STATE_DIR/.init-lock"
+VERSION_FILE="$BILLET_STATE_DIR/.versions"
+LOCK_FILE="$BILLET_STATE_DIR/.init-lock"
 
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$UID}"
 export DISPLAY="${DISPLAY:-:0}"
@@ -31,7 +31,7 @@ if [[ -d "/home/linuxbrew/.linuxbrew/bin" ]]; then
     export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
 fi
 
-mkdir -p "$BLUEAK_STATE_DIR" "$BLUEAK_LOG_DIR" "$HOME/.local/bin"
+mkdir -p "$BILLET_STATE_DIR" "$BILLET_LOG_DIR" "$HOME/.local/bin"
 sudo mkdir -p /usr/local/bin 2>/dev/null || true
 
 # ── Logging helpers ───────────────────────────────────────────────────────────
@@ -42,16 +42,16 @@ warn() { echo "!  $1"; }
 # ── First-run tracking helpers ────────────────────────────────────────────────
 is_installed() {
     local item="$1"
-    [[ -f "$BLUEAK_INSTALL_MARKER" ]] && grep -qxF "$item" "$BLUEAK_INSTALL_MARKER" 2>/dev/null
+    [[ -f "$BILLET_INSTALL_MARKER" ]] && grep -qxF "$item" "$BILLET_INSTALL_MARKER" 2>/dev/null
 }
 
 mark_installed() {
     local item="$1"
-    mkdir -p "$BLUEAK_STATE_DIR"
+    mkdir -p "$BILLET_STATE_DIR"
     if is_installed "$item"; then
         return 0
     fi
-    echo "$item" >> "$BLUEAK_INSTALL_MARKER"
+    echo "$item" >> "$BILLET_INSTALL_MARKER"
 }
 
 # ── Force flag: re-run full install ───────────────────────────────────────────
@@ -78,7 +78,7 @@ require_zenity() { command -v zenity &>/dev/null; }
 show_error() {
     local title="$1"; local msg="$2"
     if command -v notify-send &>/dev/null; then
-        notify-send -u critical -a BlueAK -c device "$title" "$msg" 2>/dev/null || true
+        notify-send -u critical -a Billet -c device "$title" "$msg" 2>/dev/null || true
     fi
     if require_zenity; then
         zenity --error --title="$title" --text="$msg" --no-wrap --width=400 2>/dev/null || true
@@ -149,12 +149,12 @@ install_binary() {
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 main() {
-    # Non-blocking: if another blueak-init is running, exit immediately
+    # Non-blocking: if another billet-init is running, exit immediately
     if [[ -f "$LOCK_FILE" ]]; then
         local LOCK_PID
         LOCK_PID=$(cat "$LOCK_FILE" 2>/dev/null || echo "")
         if [[ -n "$LOCK_PID" ]] && kill -0 "$LOCK_PID" 2>/dev/null; then
-            echo "blueak-init already running (pid $LOCK_PID) — skipping"
+            echo "billet-init already running (pid $LOCK_PID) — skipping"
             return 0
         fi
         rm -f "$LOCK_FILE"
@@ -164,13 +164,13 @@ main() {
     # Remove strict error-exit for the background run so one failure doesn't kill everything
     set +e
 
-    exec >> "$BLUEAK_LOG" 2>&1
+    exec >> "$BILLET_LOG" 2>&1
     echo ""
     echo "════════════════════════════════════════"
-    echo "[blueak-init] $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "[billet-init] $(date '+%Y-%m-%d %H:%M:%S')"
     echo "════════════════════════════════════════"
 
-    log "blueak-init: starting (pid $$)"
+    log "billet-init: starting (pid $$)"
     log "DISPLAY=$DISPLAY WAYLAND_DISPLAY=$WAYLAND_DISPLAY"
 
     local errors=0
@@ -198,21 +198,21 @@ main() {
     rm -f "$HOME/.config/autostart/aktags.desktop.bak"
 
     # Cleanup: temp files from this user's state dir
-    rm -rf "$BLUEAK_STATE_DIR/tmp" 2>/dev/null || true
+    rm -rf "$BILLET_STATE_DIR/tmp" 2>/dev/null || true
 
-    # ── Always: sync blueak-init systemd service ─────────────────────────────
-    sync_skel ".config/systemd/user/blueak-init.service"
-    if [[ -f /etc/skel/.config/systemd/user/blueak-init.service ]] && \
-       [[ ! -f "$HOME/.config/systemd/user/blueak-init.service" ]]; then
-        cp /etc/skel/.config/systemd/user/blueak-init.service \
-           "$HOME/.config/systemd/user/blueak-init.service" \
-           && ok "blueak-init.service: copied to user dir" \
-           || warn "blueak-init.service: failed to copy"
+    # ── Always: sync billet-init systemd service ─────────────────────────────
+    sync_skel ".config/systemd/user/billet-init.service"
+    if [[ -f /etc/skel/.config/systemd/user/billet-init.service ]] && \
+       [[ ! -f "$HOME/.config/systemd/user/billet-init.service" ]]; then
+        cp /etc/skel/.config/systemd/user/billet-init.service \
+           "$HOME/.config/systemd/user/billet-init.service" \
+           && ok "billet-init.service: copied to user dir" \
+           || warn "billet-init.service: failed to copy"
     fi
-    if ! systemctl --user is-enabled blueak-init 2>/dev/null; then
-        systemctl --user enable blueak-init 2>/dev/null \
-            && ok "blueak-init.service: enabled" \
-            || warn "blueak-init.service: enable failed"
+    if ! systemctl --user is-enabled billet-init 2>/dev/null; then
+        systemctl --user enable billet-init 2>/dev/null \
+            && ok "billet-init.service: enabled" \
+            || warn "billet-init.service: enable failed"
     fi
 
     # ── Always: sync + enable GNOME keyring ─────────────────────────────────
@@ -226,7 +226,7 @@ main() {
     # ── Always: show GUI status box on sync (if zenity available) ───────────
     local ZENITY_PID=""
     if require_zenity; then
-        zenity --info --title="BlueAK Setup" --text="Syncing BlueAK...\n\nThis window will close when complete." --no-wrap --width=400 &
+        zenity --info --title="Billet Setup" --text="Syncing Billet...\n\nThis window will close when complete." --no-wrap --width=400 &
         ZENITY_PID=$!
         disown $ZENITY_PID 2>/dev/null || true
     fi
@@ -323,16 +323,17 @@ IRONEOF
         fi
     fi
 
-    # ── Bluefin CLI tools ───────────────────────────────────────────────────
-    log "--- Bluefin CLI ---"
-    if command -v ujust >/dev/null 2>&1; then
-        log "Running ujust bluefin-cli..."
-        ujust bluefin-cli 2>&1 | tail -20 >> "$BLUEAK_LOG" && \
-            ok "Bluefin CLI: ujust bluefin-cli completed" || \
-            warn "Bluefin CLI: ujust bluefin-cli failed"
-    else
-        warn "Bluefin CLI: ujust not found — skipping bluefin-cli"
-    fi
+    # ── Bluefin CLI tools (removed for Billet) ─────────────────────────────
+    # Billet uses Homebrew for CLI tooling instead of ujust bluefin-cli
+    # log "--- Bluefin CLI ---"
+    # if command -v ujust >/dev/null 2>&1; then
+    #     log "Running ujust bluefin-cli..."
+    #     ujust bluefin-cli 2>&1 | tail -20 >> "$BILLET_LOG" && \
+    #         ok "Bluefin CLI: ujust bluefin-cli completed" || \
+    #         warn "Bluefin CLI: ujust bluefin-cli failed"
+    # else
+    #     warn "Bluefin CLI: ujust not found — skipping bluefin-cli"
+    # fi
 
     # ── Ensure Noctalia is reachable ────────────────────────────────────────
     log "--- Noctalia shell ---"
@@ -472,7 +473,7 @@ IRONEOF
             ok "Ollama: serve already running"
         else
             mkdir -p "$HOME/.cache/ollama"
-            nohup /usr/local/bin/ollama serve > "$BLUEAK_LOG_DIR/ollama.log" 2>&1 &
+            nohup /usr/local/bin/ollama serve > "$BILLET_LOG_DIR/ollama.log" 2>&1 &
             disown >/dev/null 2>&1 || true
             sleep 1
             if pgrep -x "ollama" >/dev/null 2>&1; then
@@ -508,7 +509,7 @@ IRONEOF
     if command -v /usr/local/bin/ollama &>/dev/null; then
         if ! pgrep -x "ollama" >/dev/null 2>&1; then
             mkdir -p "$HOME/.cache/ollama"
-            nohup /usr/local/bin/ollama serve > "$BLUEAK_LOG_DIR/ollama.log" 2>&1 &
+            nohup /usr/local/bin/ollama serve > "$BILLET_LOG_DIR/ollama.log" 2>&1 &
             disown >/dev/null 2>&1 || true
             sleep 1
             if pgrep -x "ollama" >/dev/null 2>&1; then
@@ -877,25 +878,25 @@ with open('$SETTINGS_FILE', 'w') as f:
     rm -f "$LOCK_FILE"
 
     if [[ $errors -gt 0 ]]; then
-        ok "blueak-init complete with $errors error(s) — see ~/.local/share/blueak/init.log"
-        show_error "BlueAK Setup" "blueak-init finished with $errors error(s).\nCheck ~/.local/share/blueak/init.log for details."
+        ok "billet-init complete with $errors error(s) — see ~/.local/share/blueak/init.log"
+        show_error "Billet Setup" "billet-init finished with $errors error(s).\nCheck ~/.local/share/blueak/init.log for details."
     else
-        ok "blueak-init complete"
+        ok "billet-init complete"
         if command -v notify-send &>/dev/null; then
             # Give notification daemon time to be ready, use icon flag
             sleep 2
-            notify-send -u normal -a BlueAK -i blueak "BlueAK Ready" "System sync complete. Log: ~/.local/share/blueak/init.log" 2>/dev/null || true
+            notify-send -u normal -a Billet -i blueak "Billet Ready" "System sync complete. Log: ~/.local/share/blueak/init.log" 2>/dev/null || true
         fi
     fi
-    log "blueak-init: finished (pid $$)"
+    log "billet-init: finished (pid $$)"
 }
 
 # If run in the foreground (e.g., from /etc/zshenv or .zshrc), spawn a
 # background subshell so the terminal is never blocked.
-if [[ "${BLUEAK_INIT_FOREGROUND:-}" != "1" ]]; then
+if [[ "${BILLET_INIT_FOREGROUND:-}" != "1" ]]; then
     (
-        BLUEAK_INIT_FOREGROUND=1
-        "$0" > "$BLUEAK_LOG" 2>&1
+        BILLET_INIT_FOREGROUND=1
+        "$0" > "$BILLET_LOG" 2>&1
     ) &
     exit 0
 fi

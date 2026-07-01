@@ -1,27 +1,38 @@
-ARG BASE_IMAGE=ghcr.io/ublue-os/bluefin:latest
+ARG BASE_IMAGE=fedora-bootc:42
+ARG FEDORA_VERSION=42
 FROM ${BASE_IMAGE}
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 1. Terra repo is added dynamically at runtime (see blueak-init.sh) since
+# 1. RPM Fusion — required for niri, weston, etc.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RUN dnf install -y \
+    https://mirrors.rpmfusion.org/rpmfusion.org/rpmfusion-keys-release-${FEDORA_VERSION}.noarch.rpm \
+    https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VERSION}.noarch.rpm \
+    https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VERSION}.noarch.rpm
+
+# Terra repo is added dynamically at runtime (see billet-init.sh) since
 #    the Terra repo for Fedora 43 can have transient availability issues.
 #    noctalia-shell and matugen are installed at runtime with fallback to
 #    ensure the build is resilient.
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 2. Install desktop stack
+# 2. Remove GNOME — Billet uses Niri, Noctalia, regreet, weston instead
 # NOTE: noctalia-shell and matugen come from Terra repo (Fyra Labs) which can
 # have transient mirror issues. They are also installed at runtime via
-# blueak-init.sh if not present, making the build more resilient.
+# billet-init.sh if not present, making the build more resilient.
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RUN dnf install -y \
-    niri \
-    alacritty \
-    swaybg \
-    earlyoom \
-    okular \
-    android-tools \
-    gnome-keyring
+# Remove GNOME - Billet uses Niri, Noctalia, regreet, weston instead
+RUN dnf remove -y \
+    gnome-shell gnome-terminal gnome-calculator gnome-calendar \
+    gnome-characters gnome-clocks gnome-contacts gnome-disk-utility \
+    gnome-font-viewer gnome-logs gnome-system-monitor gnome-text-editor \
+    gnome-software gnome-remote-desktop gdm gnome-session \
+    gnome-settings-daemon gnome-bluetooth gnome-control-center \
+    gnome-backgrounds gnome-desktop3-data && \
+    dnf autoremove -y
+# Billet desktop components (Niri, Noctalia, regreet, weston) are installed separately
+# Do NOT install @^server-product-environment - this is a desktop system
 
 # Noctalia Shell — via Terra repo (Fyra Labs)
 # https://docs.noctalia.dev/getting-started/installation
@@ -287,32 +298,32 @@ RUN curl -fsSL \
 # in container environment). Use nirinit for session restore instead.
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 11. Configs + first-login bootstrap (blueak-init)
+# 11. Configs + first-login bootstrap (billet-init)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# ── blueak-init script — copy first, then install ───────────────────────────────
-COPY config/blueak-init/blueak-init /tmp/blueak-init
+# ── billet-init script — copy first, then install ───────────────────────────────
+COPY config/blueak-init/blueak-init /tmp/billet-init
 RUN mkdir -p /usr/local/bin && \
-    install -m 755 /tmp/blueak-init /usr/local/bin/blueak-init && \
-    rm -f /tmp/blueak-init
+    install -m 755 /tmp/billet-init /usr/local/bin/billet-init && \
+    rm -f /tmp/billet-init
 
-# ── System-wide zsh trigger: run blueak-init on every zsh login ───────────
+# ── System-wide zsh trigger: run billet-init on every zsh login ───────────
 # Existing users won't have the systemd user service from skel. This ensures
-# blueak-init fires for ALL users on every shell login without skel dependency.
-RUN echo '[[ -x /usr/local/bin/blueak-init ]] && /usr/local/bin/blueak-init' >> /etc/zshenv
+# billet-init fires for ALL users on every shell login without skel dependency.
+RUN echo '[[ -x /usr/local/bin/billet-init ]] && /usr/local/bin/billet-init' >> /etc/zshenv
 
 # Also seed into /etc/skel/.zshrc for new users (belt-and-suspenders)
-RUN echo '[[ -x /usr/local/bin/blueak-init ]] && /usr/local/bin/blueak-init' >> /etc/skel/.zshrc
+RUN echo '[[ -x /usr/local/bin/billet-init ]] && /usr/local/bin/billet-init' >> /etc/skel/.zshrc
 
-# Seed blueak-init systemd user service for new users (desktop autostart removed to prevent double-trigger)
+# Seed billet-init systemd user service for new users (desktop autostart removed to prevent double-trigger)
 RUN mkdir -p /etc/skel/.config/systemd/user /etc/skel/.local/bin
-COPY config/systemd/blueak-init.service /etc/skel/.config/systemd/user/blueak-init.service
+COPY config/systemd/blueak-init.service /etc/skel/.config/systemd/user/billet-init.service
 COPY config/systemd/ollama.service /etc/skel/.config/systemd/user/ollama.service
 COPY config/cac/cac-setup /etc/skel/.local/bin/cac-setup
 RUN chmod +x /etc/skel/.local/bin/cac-setup
 
-# Boot-time blueak-init: runs blueak-init for all users before display manager
-COPY config/systemd/blueak-init-boot.service /etc/systemd/system/blueak-init-boot.service
-RUN systemctl enable blueak-init-boot 2>/dev/null || true
+# Boot-time billet-init: runs billet-init for all users before display manager
+COPY config/systemd/blueak-init-boot.service /etc/systemd/system/billet-init-boot.service
+RUN systemctl enable billet-init-boot 2>/dev/null || true
 
 # ── WinBoat (Windows-on-Linux via Docker/Podman + RDP) ─────────────────────
 RUN dnf install -y --skip-broken \
@@ -340,6 +351,9 @@ COPY config/cac/certs/ /etc/skel/.local/share/blueak/cac/certs/
 
 # Legacy profile.d script removed — replaced by systemd user service
 
+# Ensure kernel development packages for akmod
+RUN dnf install -y kernel-devel kernel-core-devel
+
 ARG GAMING=false
 RUN if [ "$GAMING" = "true" ]; then \
         echo "GAMING=true — installing gaming packages..."; \
@@ -356,6 +370,11 @@ RUN if [ "$GAMING" = "true" ]; then \
         printf '#!/bin/sh\nexport __NV_PRIME_RENDER_OFFLOAD=1\nexport __GLX_VENDOR_LIBRARY_NAME=nvidia\nexport VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.x86_64.json:/usr/share/vulkan/icd.d/nvidia_icd.i686.json\n' > /etc/profile.d/blueak-nvidia-gaming.sh; \
     fi
 
+# GAMING=true: Install NVIDIA drivers via akmod
+RUN dnf install -y akmod-nvidia xorg-x11-drv-nvidia-cuda && \
+    akmods --force && \
+    depmod -a
+
 # niri session file for regreet session picker
 RUN mkdir -p /usr/share/wayland-sessions
 COPY config/wayland-sessions/niri.desktop /usr/share/wayland-sessions/niri.desktop
@@ -366,6 +385,18 @@ COPY config/niri/     /etc/skel/.config/niri/
 RUN mkdir -p /etc/skel/.config/gtk-3.0 /etc/skel/.config/gtk-4.0
 COPY config/gtk-3.0/settings.ini /etc/skel/.config/gtk-3.0/settings.ini
 COPY config/gtk-4.0/settings.ini /etc/skel/.config/gtk-4.0/settings.ini
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# OCI Labels
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+LABEL org.opencontainers.image.title="Billet"
+LABEL org.opencontainers.image.description="Billet Linux - A minimalist Wayland-first atomic distro built on Fedora Silverblue"
+LABEL org.opencontainers.image.source="https://github.com/akinus/billet"
+LABEL org.opencontainers.image.vendor="akinus"
+LABEL org.opencontainers.image.version="42.0"
+
+# os-release for Billet
+RUN printf 'NAME="Billet"\nPRETTY_NAME="Billet Linux"\nID=billet\nID_LIKE=fedora\nHOME_URL="https://github.com/akinus/billet"\nSUPPORT_URL="https://github.com/akinus/billet/issues"\nBUG_REPORT_URL="https://github.com/akinus/billet/issues"\nVERSION_ID="42"\nVARIANT="Billet"\nVARIANT_ID=billet\n' > /etc/os-release.d/billet
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 12. Cleanup

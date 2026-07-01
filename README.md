@@ -1,4 +1,4 @@
-# BlueAK
+# Billet
 
 A Universal Blue bootc image template that builds an OCI image and bootable disk images (ISO, qcow2, raw). Based on [Bluefin](https://projectbluefin.io/), it provides a refined keyboard-centric desktop experience with the [Niri](https://github.com/niri-wm/niri) compositor and [Noctalia Shell](https://noctalia.dev).
 
@@ -43,14 +43,14 @@ A Universal Blue bootc image template that builds an OCI image and bootable disk
 
 **Session & State**
 - `nirinit` — session restore utility
-- `blueak-init` — bootstrap script (systemd user service)
+- `billet-init` — bootstrap script (systemd user service)
 - `bootc-fetch-apply-updates` — staged updates, nightly reboot at 3 AM
 
 **Theme (Eldritch)**
 - GTK3/4 dark theme via Adwaita-dark + color overrides
 - Eldritch color palette for terminal (P10k)
 
-### After Boot (blueak-init)
+### After Boot (billet-init)
 
 Runs on every login via systemd user service. Installs / updates:
 
@@ -65,7 +65,7 @@ Runs on every login via systemd user service. Installs / updates:
 | aktags | Homebrew (Akinus21/tap) |
 | iron | Homebrew |
 | bitwarden-cli | Homebrew |
-| blueak-session-manager | Homebrew (Akinus21/tap) |
+| billet-session-manager | Homebrew (Akinus21/tap) |
 | aktools | Homebrew (Akinus21/tap) |
 
 **Flatpak**
@@ -100,8 +100,8 @@ Runs on every login via systemd user service. Installs / updates:
 
 1. **Clone and configure:**
    ```bash
-   git clone https://github.com/Akinus21/BlueAK.git
-   cd BlueAK
+   git clone https://github.com/Akinus21/Billet.git
+   cd Billet
    ```
 
 2. **Generate a cosign key for image signing:**
@@ -111,7 +111,7 @@ Runs on every login via systemd user service. Installs / updates:
 
 3. **Add `SIGNING_SECRET` to GitHub Secrets** — paste the contents of `cosign.key`
 
-4. **Edit `Justfile`** — change `image_name` to your preferred image name (e.g., `blueak`)
+4. **Edit `Justfile`** — change `image_name` to your preferred image name (e.g., `billet`)
 
 5. **Push to trigger CI:**
    ```bash
@@ -137,18 +137,18 @@ just build-raw     # Raw disk image
 
 ## First Login
 
-On first login, `blueak-init` runs automatically via systemd user service.
+On first login, `billet-init` runs automatically via systemd user service.
 
 To force re-run:
 ```bash
-rm ~/.local/share/blueak/.sync-done && systemctl --user start blueak-init
+rm ~/.local/share/billet/.sync-done && systemctl --user start billet-init
 ```
 
 ## Repository Structure
 
 ```
 config/
-  blueak-init/       # First-login bootstrap script
+  billet-init/       # First-login bootstrap script
   cac/               # Smart card setup script
   noctalia/          # Noctalia configs + color schemes + wallpaper
   niri/              # Compositor configuration

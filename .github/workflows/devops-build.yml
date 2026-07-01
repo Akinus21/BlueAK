@@ -1,0 +1,51 @@
+name: Build + Auto-PR (devops branch)
+
+on:
+  push:
+    branches: [devops]
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: billet
+  IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  build:
+    name: Build image on devops branch
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android
+          sudo rm -rf /opt/ghc /opt/hostedtoolcache/CodeQL
+
+      - name: Build Image
+        uses: redhat-actions/buildah-build@v2
+        with:
+          containerfiles: ./Containerfile
+          image: ${{ env.IMAGE_NAME }}
+          build-args: |
+            BASE_IMAGE=fedora-bootc:42
+            FEDORA_VERSION=42
+
+      - name: Create PR to main
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Check if PR already exists
+          PR_EXISTS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&head=${{ github.repository_owner }}:devops&base=main")
+
+          if [ "$PR_EXISTS" = "200" ]; then
+            echo "PR already exists, skipping creation"
+          else
+            gh pr create \
+              --title "devops → main (auto)" \
+              --body "Automated PR from devops branch build" \
+              --base main \
+              --head devops
+          fi
