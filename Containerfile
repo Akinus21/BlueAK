@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=fedora-bootc:42
+ARG BASE_IMAGE=quay.io/fedora/fedora-bootc:42
 ARG FEDORA_VERSION=42
 FROM ${BASE_IMAGE}
 
