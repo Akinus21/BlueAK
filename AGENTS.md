@@ -1,4 +1,4 @@
-# BlueAK
+# Billet
 
 Universal Blue bootc image template. This repo builds OCI images and bootable disk images (ISO, qcow2, raw).
 
@@ -54,9 +54,9 @@ just clean              # Remove build artifacts
 - No tests in traditional sense - verify by building images
 - This is a template; `image_name` in Justfile should be customized on fork
 
-## Eldritch Theme (BlueAK Color Palette)
+## Eldritch Theme (Billet Color Palette)
 
-The "Eldritch" theme defines BlueAK's unified color system across multiple applications.
+The "Eldritch" theme defines Billet's unified color system across multiple applications.
 
 | Role        | Hex       | Name                      |
 |-------------|-----------|---------------------------|

@@ -1,14 +1,14 @@
 # Changelog
 
-All notable changes to BlueAK are documented here.
+All notable changes to Billet are documented here.
 
 ## [Unreleased]
 
 ## [0.2.0] — 2026-04-24
 
 ### Fixed
-- **blueak-init not running on login** — removed stale `profile.d/blueak-init.sh` that was shadowing the systemd service; now uses only `blueak-init.service` (systemd user service)
-- **Nyxt flatpak not installing** — blueak-init now installs Nyxt flatpak on first login with proper CAC/filesystem overrides, instead of relying on build-time install that didn't persist
+- **billet-init not running on login** — removed stale `profile.d/billet-init.sh` that was shadowing the systemd service; now uses only `billet-init.service` (systemd user service)
+- **Nyxt flatpak not installing** — billet-init now installs Nyxt flatpak on first login with proper CAC/filesystem overrides, instead of relying on build-time install that didn't persist
 - **nyxt.desktop wrong Exec path** — changed from `/usr/bin/nyxt` to `flatpak run org.nyxt.Nyxt`
 
 ### Changed
@@ -17,7 +17,7 @@ All notable changes to BlueAK are documented here.
 - **Nyxt** — replaced GitHub AppImage with flatpak (`org.nyxt.Nyxt`) with filesystem overrides for GTK theme and CAC access
 
 ### Added
-- **blueak-init Noctalia color scheme seeding** — creates `~/.config/noctalia/colorschemes/` directory structure for proper GUI theme discovery
+- **billet-init Noctalia color scheme seeding** — creates `~/.config/noctalia/colorschemes/` directory structure for proper GUI theme discovery
 
 ## [0.1.0] — 2026-04-22
 

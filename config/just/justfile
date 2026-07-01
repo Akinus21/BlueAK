@@ -1,4 +1,4 @@
-# BlueAK justfile — host-level ops and shortcuts
+# Billet justfile — host-level ops and shortcuts
 # Run `just` to list all recipes
 
 # ── System ──────────────────────────────────────────────────────────────────

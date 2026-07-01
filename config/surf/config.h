@@ -1,4 +1,4 @@
-/* surf/config.h — BlueAK Surf configuration
+/* surf/config.h — Billet Surf configuration
  * Keybinds inspired by Niri (hjkl nav, Mod+arrows, workspace hints)
  * Dark mode enabled by default (Noctalia Purple Haze theme)
  */
