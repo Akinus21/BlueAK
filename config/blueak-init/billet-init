@@ -1,6 +1,6 @@
 #!/bin/bash
 # Billet init - first login bootstrap for Billet Linux
-# (formerly billet-init)
+# (formerly blueak-init)
 #
 # This script handles first-login setup for Billet Linux including:
 # - Homebrew package installation
